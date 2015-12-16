@@ -1,0 +1,4 @@
+Resolve host names properly in CE
+Sort out configuration issues
+Handle command-line arguments correctly in proxy
+Create broker process
