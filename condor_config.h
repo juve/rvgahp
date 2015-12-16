@@ -1,6 +1,6 @@
 #ifndef RVGAHP_CONDOR_CONFIG_H
 #define RVGAHP_CONDOR_CONFIG_H
 
-int condor_config_val(char *var, char *val, size_t valsize);
+int condor_config_val(char *var, char *val, size_t valsize, const char *default_val);
 
 #endif

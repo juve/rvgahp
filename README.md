@@ -42,18 +42,26 @@ On your submit host:
 On the remote resource:
 
 1. Make sure the batch_gahp/glite/blahp is installed and configured correctly
-1. Create $HOME/.condor/log
-1. Create a $HOME/.condor/condor_config.ft-gahp
-1. In condor_config.ft-gahp set:
+1. Create $HOME/.rvgahp
+1. Create a $HOME/.rvgahp/condor_config.rvgahp
+1. In condor_config.rvgahp set:
 
     ```
-    BOSCO_SANDBOX_DIR = $ENV(HOME)/.condor
-    LOG = $ENV(HOME)/.condor/log
-    FT_GAHP_LOG = $(LOG)/FTGahpLog
     LIBEXEC = /usr/libexec/condor
+    BOSCO_SANDBOX_DIR = $ENV(HOME)/.rvgahp
+    LOG = $ENV(HOME)/.rvgahp
+
+    GLITE_LOCATION = $(LIBEXEC)/glite
+    BATCH_GAHP = $(GLITE_LOCATION)/bin/batch_gahp
+
+    FT_GAHP_LOG = $(LOG)/FTGahpLog
+    FT_GAHP = /usr/sbin/condor_ft-gahp
+
+    RVGAHP_BROKER_HOST = 128.9.72.83
+    RVGAHP_BROKER_PORT = 41000
     ```
 
-1. start the rvgahp_ce process.
+1. Start the rvgahp_ce process.
 
 Example Job
 -----------

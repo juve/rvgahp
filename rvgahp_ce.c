@@ -12,56 +12,69 @@
 
 #include "condor_config.h"
 
+#define DEFAULT_BROKER_HOST "127.0.0.1"
+#define DEFAULT_BROKER_PORT "41000"
+
 char *argv0 = NULL;
 
 void usage() {
-    fprintf(stderr, "Usage: %s [-H HOST] [-p PORT]\n", argv0);
-    fprintf(stderr, "\t-H HOST\tHost where the reverse GAHP broker is running\n");
-    fprintf(stderr, "\t-p PORT\tPort of the reverse GAHP broker\n");
+    fprintf(stderr, "Usage: %s\n", argv0);
+    fprintf(stderr, "This command has no options\n");
+}
+
+int set_condor_config() {
+    char *homedir = getenv("HOME");
+    if (homedir == NULL) {
+        fprintf(stderr, "ERROR HOME is not set in environment");
+        return -1;
+    }
+
+    char config_file[BUFSIZ];
+    snprintf(config_file, BUFSIZ, "%s/%s", homedir, ".rvgahp/condor_config.rvgahp");
+    if (access(config_file, R_OK) < 0) {
+        fprintf(stderr, "ERROR Cannot find config file %s", config_file);
+        return -1;
+    }
+
+    setenv("CONDOR_CONFIG", config_file, 1);
+    return 0;
 }
 
 int main(int argc, char** argv) {
     argv0 = basename(strdup(argv[0]));
-    char *server = "127.0.0.1";
-    unsigned short port = 41000;
 
-    opterr = 0;
-    int c;
-    while ((c = getopt(argc, argv, "hH:p:")) != -1) {
-        switch (c) {
-            case 'h':
-                usage();
-                return 1;
-                break;
-            case 'H':
-                server = optarg;
-                break;
-            case 'p':
-                if (sscanf(optarg, "%hu", &port) != 1) {
-                    fprintf(stderr, "Invalid port: %s\n", optarg);
-                    return 1;
-                }
-                break;
-            case '?':
-                if (optopt == 'H' || optopt == 'p') {
-                    fprintf (stderr, "Option -%c requires an argument.\n", optopt);
-                } else {
-                    fprintf (stderr, "Unknown option '-%c'.\n", optopt);
-                }
-                return 1;
-            default:
-                abort();
-        }
-    }
-
-    if (optind != argc) {
-        fprintf(stderr, "Invalid argument: %s\n", argv[optind]);
+    if (argc > 1) {
+        fprintf(stderr, "Invalid argument: %s\n", argv[1]);
         usage();
         exit(1);
     }
 
-    fprintf(stdout, "%s starting...\n", argv0);
-    fprintf(stdout, "server: %s:%hu\n", server, port);
+    printf("%s starting...\n", argv0);
+
+    /* Set up configuration */
+    if (set_condor_config() < 0) {
+        exit(1);
+    }
+    printf("config: %s\n", getenv("CONDOR_CONFIG"));
+
+    /* Get host and port from config */
+    char server[1024];
+    if (condor_config_val("RVGAHP_BROKER_HOST", server, 1024, DEFAULT_BROKER_HOST) != 0) {
+        fprintf(stderr, "ERROR Unable to read RVGAHP_BROKER_HOST from config file\n");
+        exit(1);
+    }
+
+    char server_port_str[10];
+    if (condor_config_val("RVGAHP_BROKER_PORT", server_port_str, 10, DEFAULT_BROKER_PORT) != 0) {
+        fprintf(stderr, "ERROR Unable to read RVGAHP_BROKER_PORT from config file\n");
+        exit(1);
+    }
+    unsigned short port;
+    if (sscanf(server_port_str, "%hu", &port) != 1) {
+        fprintf(stderr, "ERROR Invalid RVGAHP_BROKER_PORT: %s\n", server_port_str);
+        exit(1);
+    }
+    printf("server: %s:%hu\n", server, port);
 
     while (1) {
         struct sockaddr_in this_addr, serv_addr;
@@ -96,24 +109,23 @@ int main(int argc, char** argv) {
         printf("Launching GAHP: %s\n", gahp);
 
         /* Construct the actual GAHP command */
-        /* TODO Get these from condor_config_val */
         char gahp_command[BUFSIZ];
         if (strncmp("batch_gahp", gahp, 10) == 0) {
             char batch_gahp[BUFSIZ]; 
-            if (condor_config_val("BATCH_GAHP", batch_gahp, BUFSIZ) < 0) {
+            if (condor_config_val("BATCH_GAHP", batch_gahp, BUFSIZ, NULL) < 0) {
                 goto next;
             }
             char glite_location[BUFSIZ];
-            if (condor_config_val("GLITE_LOCATION", glite_location, BUFSIZ) < 0) {
+            if (condor_config_val("GLITE_LOCATION", glite_location, BUFSIZ, NULL) < 0) {
                 goto next;
             }
             snprintf(gahp_command, BUFSIZ, "GLITE_LOCATION=%s %s", glite_location, batch_gahp);
         } else if (strncmp("condor_ft-gahp", gahp, 14) == 0) {
-            char sbin[BUFSIZ];
-            if (condor_config_val("SBIN", sbin, BUFSIZ) < 0) {
+            char ft_gahp[BUFSIZ];
+            if (condor_config_val("FT_GAHP", ft_gahp, BUFSIZ, NULL) < 0) {
                 goto next;
             }
-            snprintf(gahp_command, BUFSIZ, "CONDOR_CONFIG=~/.condor/condor_config.ft-gahp %s/condor_ft-gahp -f", sbin);
+            snprintf(gahp_command, BUFSIZ, "%s -f", ft_gahp);
         } else {
             fprintf(stderr, "ERROR: Unknown GAHP: %s\n", gahp);
             goto next;

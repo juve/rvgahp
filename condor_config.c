@@ -4,7 +4,7 @@
 
 #include "condor_config.h"
 
-int condor_config_val(char *var, char *val, size_t valsize) {
+int condor_config_val(char *var, char *val, size_t valsize, const char *default_val) {
     char cmd[BUFSIZ];
     snprintf(cmd, BUFSIZ, "condor_config_val %s", var);
 
@@ -21,6 +21,15 @@ int condor_config_val(char *var, char *val, size_t valsize) {
     }
 
     int status = pclose(proc);
+
+    if (strncmp("Not defined:", val, 12) == 0) {
+        if (default_val == NULL) {
+            return -1;
+        }
+        snprintf(val, valsize, "%s", default_val);
+        return 0;
+    }
+
     if (status != 0) {
         fprintf(stderr, "ERROR reading condor_config_val %s:\n", var);
         fprintf(stderr, "%s", val);
