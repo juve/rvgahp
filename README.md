@@ -6,6 +6,28 @@ ssh connections to the remote resource. Instead, it uses connection brokering
 to establish bi-directional communication between the GridManager and GAHP
 processes running on the remote resource.
 
+It works like this:
+
+![rvgahp design](doc/rvgahp.png)
+
+The rvgahp_ce process periodically attempts to connect to the rvgahp_proxy.
+When a remote GAHP job is submitted, the GridManager launches an rvgahp_proxy
+process to set up the GAHP servers. The rvgahp_proxy binds to the port that
+the rvgahp_ce process is trying to contact. The next time the rvgahp_ce process
+calls, the connection succeeds and rvgahp_proxy and rvgahp_ce begin to
+talk to each other. The rvgahp_proxy tells the rvgahp_ce which GAHP server
+to start (batch_gahp for job submission or condor_ft-gahp for file transfer).
+The rvgahp_ce launches the GAHP server and connects its stdio to the socket.
+The rvgahp_proxy copies stdin from the GridManager to the socket, and data
+from the socket to stdout and back to the GridManager. Once all connections are
+established, the job execution proceeds. When the GridManager is done, the GAHP
+servers exit and the connections are torn down.
+
+Right now the rvgahp_ce polls for connections to the proxy, and the whole
+thing is a bit hacky and not secure. A future design will use a broker process
+to make connection setup instant, support multiple CE processes and users, and
+resolve any security issues.
+
 Configuration
 -------------
 
