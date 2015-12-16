@@ -41,6 +41,7 @@ On your submit host:
 
 On the remote resource:
 
+1. Make sure the batch_gahp/glite/blahp is installed and configured correctly
 1. Create $HOME/.condor/log
 1. Create a $HOME/.condor/condor_config.ft-gahp
 1. In condor_config.ft-gahp set:
@@ -61,7 +62,6 @@ universe = grid
 
 grid_resource = batch pbs juve@hpc-pegasus.usc.edu
 +remote_cerequirements = EXTRA_ARGUMENTS=="-N testjob -l walltime=00:01:00 -l nodes=1:ppn=1"
-
 
 executable = /bin/date
 transfer_executable = False
