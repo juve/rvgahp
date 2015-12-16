@@ -15,6 +15,7 @@
 
 #define DEFAULT_BROKER_HOST "127.0.0.1"
 #define DEFAULT_BROKER_PORT "41000"
+#define DEFAULT_INTERVAL "60"
 
 char *argv0 = NULL;
 
@@ -58,7 +59,6 @@ int main(int argc, char** argv) {
     }
     printf("config: %s\n", getenv("CONDOR_CONFIG"));
 
-    /* Get host and port from config */
     char server[1024];
     if (condor_config_val("RVGAHP_BROKER_HOST", server, 1024, DEFAULT_BROKER_HOST) != 0) {
         fprintf(stderr, "ERROR Unable to read RVGAHP_BROKER_HOST from config file\n");
@@ -70,7 +70,19 @@ int main(int argc, char** argv) {
         fprintf(stderr, "ERROR Unable to read RVGAHP_BROKER_PORT from config file\n");
         exit(1);
     }
-    printf("server: %s:%s\n", server, port);
+    printf("proxy address: %s:%s\n", server, port);
+
+    char interval_str[10];
+    if (condor_config_val("RVGAHP_CE_INTERVAL", interval_str, 10, DEFAULT_INTERVAL) != 0) {
+        fprintf(stderr, "ERROR Unable to read RVGAHP_CE_INTERVAL from config file\n");
+        exit(1);
+    }
+    int interval;
+    if (sscanf(interval_str, "%d", &interval) != 1) {
+        fprintf(stderr, "ERROR Invalid RVGAHP_CE_INTERVAL: %s\n", interval_str);
+        exit(1);
+    }
+    printf("interval: %d seconds\n", interval);
 
     while (1) {
         struct addrinfo hints;
@@ -195,7 +207,7 @@ next:
         close(sck);
 
         /* Wait a few seconds before trying again */
-        sleep(10);
+        sleep(interval);
     }
 
     exit(0);

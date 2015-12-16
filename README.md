@@ -59,6 +59,8 @@ On the remote resource:
 
     RVGAHP_BROKER_HOST = example.com
     RVGAHP_BROKER_PORT = 41000
+    # Polling interval in seconds
+    RVGAHP_CE_INTERVAL = 10
     ```
 
 1. Start the rvgahp_ce process.
