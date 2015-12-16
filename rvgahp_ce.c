@@ -15,8 +15,8 @@
 char *argv0 = NULL;
 
 void usage() {
-    fprintf(stderr, "Usage: %s [-h HOST] [-p PORT]\n", argv0);
-    fprintf(stderr, "\t-h HOST\tHost where the reverse GAHP broker is running\n");
+    fprintf(stderr, "Usage: %s [-H HOST] [-p PORT]\n", argv0);
+    fprintf(stderr, "\t-H HOST\tHost where the reverse GAHP broker is running\n");
     fprintf(stderr, "\t-p PORT\tPort of the reverse GAHP broker\n");
 }
 
@@ -27,13 +27,13 @@ int main(int argc, char** argv) {
 
     opterr = 0;
     int c;
-    while ((c = getopt(argc, argv, "hs:p:")) != -1) {
+    while ((c = getopt(argc, argv, "hH:p:")) != -1) {
         switch (c) {
             case 'h':
                 usage();
                 return 1;
                 break;
-            case 's':
+            case 'H':
                 server = optarg;
                 break;
             case 'p':
@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
                 }
                 break;
             case '?':
-                if (optopt == 's' || optopt == 'p') {
+                if (optopt == 'H' || optopt == 'p') {
                     fprintf (stderr, "Option -%c requires an argument.\n", optopt);
                 } else {
                     fprintf (stderr, "Unknown option '-%c'.\n", optopt);
