@@ -12,15 +12,18 @@ Configuration
 On your submit host:
 
 1. In your condor_config set:
-    REMOTE_GAHP = /path/to/rvgahp_proxy
+
+  REMOTE_GAHP = /path/to/rvgahp_proxy
 
 On the remote resource:
 
 1. Create $HOME/.condor/log
 2. Create a $HOME/.condor/condor_config.ft-gahp
 3. In condor_config.ft-gahp set:
-    BOSCO_SANDBOX_DIR = $ENV(HOME)/.condor
-    LOG = $ENV(HOME)/.condor/log
-    FT_GAHP_LOG = $(LOG)/FTGahpLog
-    LIBEXEC = /usr/libexec/condor
+
+  BOSCO_SANDBOX_DIR = $ENV(HOME)/.condor
+  LOG = $ENV(HOME)/.condor/log
+  FT_GAHP_LOG = $(LOG)/FTGahpLog
+  LIBEXEC = /usr/libexec/condor
+
 4. start the rvgahp_ce process.
