@@ -13,10 +13,6 @@
 
 #include "condor_config.h"
 
-#define DEFAULT_BROKER_HOST "127.0.0.1"
-#define DEFAULT_BROKER_PORT "41000"
-#define DEFAULT_INTERVAL "60"
-
 char *argv0 = NULL;
 
 void usage() {

@@ -10,6 +10,8 @@
 #include <sys/poll.h>
 #include <libgen.h>
 
+#include "condor_config.h"
+
 char *argv0 = NULL;
 
 void usage() {
@@ -19,33 +21,27 @@ void usage() {
 int main(int argc, char **argv) {
     argv0 = basename(strdup(argv[0]));
 
-    unsigned short port = 41000;
-
     if (argc != 3) {
         usage();
         exit(1);
     }
 
-    char *resource = argv[1];
-    char *gahp = argv[2];
-
-    char logfile[BUFSIZ];
-    snprintf(logfile, BUFSIZ, "/tmp/%s.log", argv0);
-    FILE *log = fopen(logfile, "a");
-    if (log == NULL) {
-        fprintf(stderr, "ERROR: Unable to open log file '%s': %s\n", logfile, strerror(errno));
-        return 1;
+    char port_str[10];
+    if (condor_config_val("RVGAHP_BROKER_PORT", port_str, 10, DEFAULT_BROKER_PORT) != 0) {
+        fprintf(stderr, "ERROR reading RVGAHP_BROKER_PORT from config\n");
+        exit(1);
+    }
+    unsigned short port;
+    if (sscanf(port_str, "%hu", &port) != 1) {
+        fprintf(stderr, "ERROR Invalid port: %s\n", port_str);
+        exit(1);
     }
 
-    fprintf(log, "%s starting...\n", argv0);
-    fprintf(log, "Resource: %s\n", resource);
-    fprintf(log, "GAHP: %s\n", gahp);
+    //char *resource = argv[1];
+    char *gahp = argv[2];
 
-    int sck, client;
-    socklen_t addrlen;
+    socklen_t addrlen = sizeof(struct sockaddr_in);
     struct sockaddr_in this_addr, peer_addr;
-
-    addrlen = sizeof(struct sockaddr_in);
     memset(&this_addr, 0, addrlen);
     memset(&peer_addr, 0, addrlen);
 
@@ -53,7 +49,7 @@ int main(int argc, char **argv) {
     this_addr.sin_family = AF_INET;
     this_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    sck = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    int sck = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
     if (sck < 0) {
         fprintf(stderr, "ERROR creating socket: %s\n", strerror(errno));
         return 1;
@@ -61,7 +57,7 @@ int main(int argc, char **argv) {
 
     int enable = 1;
     if (setsockopt(sck, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
-        fprintf(stderr, "setsockopt(SO_REUSEADDR) failed: %s\n", strerror(errno));
+        fprintf(stderr, "ERROR setsockopt(SO_REUSEADDR) failed: %s\n", strerror(errno));
         return 1;
     }
 
@@ -78,7 +74,7 @@ int main(int argc, char **argv) {
     /* Set an alarm to timeout the accept just in case there is no gahp_daemon */
     alarm(30);
 
-    client = accept(sck, (struct sockaddr *)&peer_addr, &addrlen);
+    int client = accept(sck, (struct sockaddr *)&peer_addr, &addrlen);
 
     /* Turn off the timer */
     alarm(0);
@@ -98,7 +94,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    /* TODO Handle all the I/O between client and server */
+    /* Handle all the I/O between client and server */
     int bytes_read = 0;
     char buf[BUFSIZ];
     struct pollfd ufds[2];
@@ -147,9 +143,6 @@ int main(int argc, char **argv) {
     }
 
     close(client);
-
-    fprintf(log, "reverse_gahp exiting\n");
-    fclose(log);
 
     return 0;
 }
