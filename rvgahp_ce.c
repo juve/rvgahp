@@ -113,7 +113,7 @@ int main(int argc, char** argv) {
             if (condor_config_val("SBIN", sbin, BUFSIZ) < 0) {
                 goto next;
             }
-            snprintf(gahp_command, BUFSIZ, "CONDOR_CONFIG=~/condor_config.ft-gahp %s/condor_ft-gahp -f", sbin);
+            snprintf(gahp_command, BUFSIZ, "CONDOR_CONFIG=~/.condor/condor_config.ft-gahp %s/condor_ft-gahp -f", sbin);
         } else {
             fprintf(stderr, "ERROR: Unknown GAHP: %s\n", gahp);
             goto next;
