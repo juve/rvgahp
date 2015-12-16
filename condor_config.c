@@ -4,28 +4,27 @@
 
 #include "condor_config.h"
 
-char *condor_config_val(char *var) {
+int condor_config_val(char *var, char *val, size_t valsize) {
     char cmd[BUFSIZ];
     snprintf(cmd, BUFSIZ, "condor_config_val %s", var);
 
     FILE *proc = popen(cmd, "r");
     if (proc == NULL) {
         fprintf(stderr, "ERROR getting %s config var\n", var);
-        return NULL;
+        return -1;
     }
 
-    char val[BUFSIZ];
-    if (fgets(val, BUFSIZ, proc) == NULL) {
+    if (fgets(val, valsize, proc) == NULL) {
         fprintf(stderr, "ERROR reading output of condor_config_val\n");
         pclose(proc);
-        return NULL;
+        return -1;
     }
 
     int status = pclose(proc);
     if (status != 0) {
         fprintf(stderr, "ERROR reading condor_config_val %s:\n", var);
         fprintf(stderr, "%s", val);
-        return NULL;
+        return -1;
     }
 
     int sz = strlen(val) - 1;
@@ -34,6 +33,6 @@ char *condor_config_val(char *var) {
         sz--;
     }
 
-    return strdup(val);
+    return 0;
 }
 

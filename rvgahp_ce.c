@@ -97,15 +97,26 @@ int main(int argc, char** argv) {
 
         /* Construct the actual GAHP command */
         /* TODO Get these from condor_config_val */
-        char *gahp_command;
+        char gahp_command[BUFSIZ];
         if (strncmp("batch_gahp", gahp, 10) == 0) {
-            gahp_command = "BLAHPD_LOCATION=/usr/local/BLAH /usr/local/BLAH/bin/blahpd";
+            char batch_gahp[BUFSIZ]; 
+            if (condor_config_val("BATCH_GAHP", batch_gahp, BUFSIZ) < 0) {
+                goto next;
+            }
+            char glite_location[BUFSIZ];
+            if (condor_config_val("GLITE_LOCATION", glite_location, BUFSIZ) < 0) {
+                goto next;
+            }
+            snprintf(gahp_command, BUFSIZ, "GLITE_LOCATION=%s %s", glite_location, batch_gahp);
         } else if (strncmp("condor_ft-gahp", gahp, 14) == 0) {
-            gahp_command = "_condor_BOSCO_SANDBOX_DIR=~/.condor /usr/sbin/condor_ft-gahp -f";
+            char sbin[BUFSIZ];
+            if (condor_config_val("SBIN", sbin, BUFSIZ) < 0) {
+                goto next;
+            }
+            snprintf(gahp_command, BUFSIZ, "CONDOR_CONFIG=~/condor_config.ft-gahp %s/condor_ft-gahp -f", sbin);
         } else {
             fprintf(stderr, "ERROR: Unknown GAHP: %s\n", gahp);
-            close(sck);
-            continue;
+            goto next;
         }
         printf("Actual GAHP command: %s\n", gahp_command);
 
@@ -149,6 +160,7 @@ int main(int argc, char** argv) {
             fprintf(stderr, "Error forking GAHP process (1): %s\n", strerror(errno));
         }
 
+next:
         /* We no longer need the client socket */
         close(sck);
     }
