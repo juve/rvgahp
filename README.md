@@ -57,7 +57,7 @@ On the remote resource:
     FT_GAHP_LOG = $(LOG)/FTGahpLog
     FT_GAHP = /usr/sbin/condor_ft-gahp
 
-    RVGAHP_BROKER_HOST = 128.9.72.83
+    RVGAHP_BROKER_HOST = example.com
     RVGAHP_BROKER_PORT = 41000
     ```
 

@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <libgen.h>
+#include <netdb.h>
 
 #include "condor_config.h"
 
@@ -64,34 +65,52 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    char server_port_str[10];
-    if (condor_config_val("RVGAHP_BROKER_PORT", server_port_str, 10, DEFAULT_BROKER_PORT) != 0) {
+    char port[10];
+    if (condor_config_val("RVGAHP_BROKER_PORT", port, 10, DEFAULT_BROKER_PORT) != 0) {
         fprintf(stderr, "ERROR Unable to read RVGAHP_BROKER_PORT from config file\n");
         exit(1);
     }
-    unsigned short port;
-    if (sscanf(server_port_str, "%hu", &port) != 1) {
-        fprintf(stderr, "ERROR Invalid RVGAHP_BROKER_PORT: %s\n", server_port_str);
-        exit(1);
-    }
-    printf("server: %s:%hu\n", server, port);
+    printf("server: %s:%s\n", server, port);
 
     while (1) {
-        struct sockaddr_in this_addr, serv_addr;
-        int addrlen = sizeof(struct sockaddr_in);
-        memset(&this_addr, 0, addrlen);
-        memset(&serv_addr, 0, addrlen);
+        struct addrinfo hints;
+        struct addrinfo *servinfo;
 
-        serv_addr.sin_family = AF_INET;
-        serv_addr.sin_port = htons(port);
-        inet_pton(AF_INET, server, &serv_addr.sin_addr);
+        memset(&hints, 0, sizeof hints);
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
 
-        int sck = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+        // get ready to connect
+        int gairv = getaddrinfo(server, port, &hints, &servinfo);
+        if (getaddrinfo(server, port, &hints, &servinfo)) {
+            fprintf(stderr, "ERROR getaddrinfo: %s\n", gai_strerror(gairv));
+            goto next;
+        }
 
-        if (connect(sck, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-            /* If we didn't connect, then wait a few seconds and try again */
-            sleep(10);
-            continue;
+        /* Try any and all addresses */
+        int sck;
+        struct addrinfo *ai;
+        for (ai = servinfo; ai != NULL; ai = ai->ai_next) {
+            sck = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+            if (sck == -1) {
+                fprintf(stderr, "error creating socket: %s\n", strerror(errno));
+                continue;
+            }
+
+            if (connect(sck, ai->ai_addr, ai->ai_addrlen) == -1) {
+                close(sck);
+                continue;
+            }
+
+            /* If we made it this far, then we are connected */
+            break;
+        }
+
+        freeaddrinfo(servinfo);
+
+        if (ai == NULL) {
+            /* We failed to connect, so wait a few and try again */
+            goto next;
         }
 
         printf("Connected to rvgahp_proxy\n");
@@ -101,8 +120,7 @@ int main(int argc, char** argv) {
         int sz = read(sck, gahp, BUFSIZ);
         if (sz <= 0) {
             fprintf(stderr, "ERROR reading gahp name from rvgahp_proxy\n");
-            close(sck);
-            continue;
+            goto next;
         }
         gahp[sz] = '\0';
 
@@ -175,6 +193,9 @@ int main(int argc, char** argv) {
 next:
         /* We no longer need the client socket */
         close(sck);
+
+        /* Wait a few seconds before trying again */
+        sleep(10);
     }
 
     exit(0);
