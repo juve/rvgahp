@@ -6,7 +6,7 @@
 
 int condor_config_val(char *var, char *val, size_t valsize, const char *default_val) {
     char cmd[BUFSIZ];
-    snprintf(cmd, BUFSIZ, "condor_config_val %s", var);
+    snprintf(cmd, BUFSIZ, "condor_config_val %s 2>&1", var);
 
     FILE *proc = popen(cmd, "r");
     if (proc == NULL) {
@@ -14,7 +14,8 @@ int condor_config_val(char *var, char *val, size_t valsize, const char *default_
         return -1;
     }
 
-    if (fgets(val, valsize, proc) == NULL) {
+    char buf[BUFSIZ];
+    if (fgets(buf, BUFSIZ, proc) == NULL) {
         fprintf(stderr, "ERROR reading output of condor_config_val\n");
         pclose(proc);
         return -1;
@@ -22,7 +23,7 @@ int condor_config_val(char *var, char *val, size_t valsize, const char *default_
 
     int status = pclose(proc);
 
-    if (strncmp("Not defined:", val, 12) == 0) {
+    if (strncmp("Not defined:", buf, 12) == 0) {
         if (default_val == NULL) {
             return -1;
         }
@@ -32,15 +33,18 @@ int condor_config_val(char *var, char *val, size_t valsize, const char *default_
 
     if (status != 0) {
         fprintf(stderr, "ERROR reading condor_config_val %s:\n", var);
-        fprintf(stderr, "%s", val);
+        fprintf(stderr, "%s", buf);
         return -1;
     }
 
-    int sz = strlen(val) - 1;
-    while (val[sz] == '\n' || val[sz] == '\r') {
-        val[sz] = '\0';
+    /* Trim the string */
+    int sz = strlen(buf) - 1;
+    while (buf[sz] == '\n' || buf[sz] == '\r') {
+        buf[sz] = '\0';
         sz--;
     }
+
+    snprintf(val, valsize, "%s", buf);
 
     return 0;
 }
