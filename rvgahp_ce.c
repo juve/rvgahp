@@ -10,10 +10,30 @@
 #include <sys/wait.h>
 #include <libgen.h>
 #include <netdb.h>
+#include <time.h>
 
 #include "condor_config.h"
 
+#define log(fmt, ...) \
+    fprintf(stdout, "%s %s[%d]: " fmt, ts(), argv0, \
+            getpid(), ##__VA_ARGS__)
+
 char *argv0 = NULL;
+
+char *ts() {
+    time_t t;
+    time(&t);
+
+    struct tm tm;
+    localtime_r(&t, &tm);
+
+    static char timestamp[1024];
+    snprintf(timestamp, 1024, "%d-%d-%d %02d:%02d:%02d",
+            1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday,
+            tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+    return timestamp;
+}
 
 void usage() {
     fprintf(stderr, "Usage: %s\n", argv0);
@@ -47,13 +67,13 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    printf("%s starting...\n", argv0);
+    log("%s starting...\n", argv0);
 
     /* Set up configuration */
     if (set_condor_config() < 0) {
         exit(1);
     }
-    printf("config: %s\n", getenv("CONDOR_CONFIG"));
+    log("Config file: %s\n", getenv("CONDOR_CONFIG"));
 
     char server[1024];
     if (condor_config_val("RVGAHP_BROKER_HOST", server, 1024, DEFAULT_BROKER_HOST) != 0) {
@@ -66,7 +86,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "ERROR Unable to read RVGAHP_BROKER_PORT from config file\n");
         exit(1);
     }
-    printf("proxy address: %s:%s\n", server, port);
+    log("Proxy Address: %s:%s\n", server, port);
 
     char interval_str[10];
     if (condor_config_val("RVGAHP_CE_INTERVAL", interval_str, 10, DEFAULT_INTERVAL) != 0) {
@@ -78,14 +98,14 @@ int main(int argc, char** argv) {
         fprintf(stderr, "ERROR Invalid RVGAHP_CE_INTERVAL: %s\n", interval_str);
         exit(1);
     }
-    printf("interval: %d seconds\n", interval);
+    log("Polling Interval: %d seconds\n", interval);
 
     char name[BUFSIZ];
     if (condor_config_val("RVGAHP_CE_NAME", name, BUFSIZ, NULL) != 0) {
         fprintf(stderr, "ERROR Unable to read RVGAHP_CE_NAME from config file\n");
         exit(1);
     }
-    printf("ce name: %s\n", name);
+    log("CE Name: %s\n", name);
 
     while (1) {
         struct addrinfo hints;
@@ -128,7 +148,7 @@ int main(int argc, char** argv) {
             goto next;
         }
 
-        printf("Connected to rvgahp_proxy\n");
+        log("Connected to rvgahp_proxy\n");
 
         /* Process the request */
         char message[BUFSIZ];
@@ -155,7 +175,7 @@ int main(int argc, char** argv) {
             goto next;
         }
 
-        printf("Launching GAHP: %s\n", gahp);
+        log("Launching GAHP: %s\n", gahp);
 
         /* Construct the actual GAHP command */
         char gahp_command[BUFSIZ];
@@ -179,8 +199,9 @@ int main(int argc, char** argv) {
             fprintf(stderr, "ERROR: Unknown GAHP: %s\n", gahp);
             goto next;
         }
-        printf("Actual GAHP command: %s\n", gahp_command);
+        log("Actual GAHP command: %s\n", gahp_command);
 
+        /* Double fork to detach GAHP processes */
         pid_t c1 = fork();
         if (c1 > 0) {
             /* Wait for the GAHP process' parent to exit */
