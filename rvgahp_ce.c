@@ -85,6 +85,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "ERROR Unable to read RVGAHP_CE_NAME from config file\n");
         exit(1);
     }
+    printf("ce name: %s\n", name);
 
     while (1) {
         struct addrinfo hints;
@@ -145,6 +146,8 @@ int main(int argc, char** argv) {
             fprintf(stderr, "ERROR invalid request: %s\n", message);
             goto next;
         }
+        gahp[0] = '\0';
+        gahp++;
 
         /* Make sure that the CE name matches */
         if (strcmp(ce, name) != 0) {
