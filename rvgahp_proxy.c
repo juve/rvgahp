@@ -15,13 +15,14 @@
 char *argv0 = NULL;
 
 void usage() {
-    fprintf(stderr, "Usage: %s [USER@]HOST GAHP_NAME\n", argv0);
+    fprintf(stderr, "Usage: %s CE_NAME GAHP_NAME\n", argv0);
 }
 
 int main(int argc, char **argv) {
     argv0 = basename(strdup(argv[0]));
 
     if (argc != 3) {
+        fprintf(stderr, "Wrong number of arguments: expected 3, got %d\n", argc);
         usage();
         exit(1);
     }
@@ -37,7 +38,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    //char *resource = argv[1];
+    char *ce = argv[1];
     char *gahp = argv[2];
 
     socklen_t addrlen = sizeof(struct sockaddr_in);
@@ -83,15 +84,17 @@ int main(int argc, char **argv) {
     close(sck);
 
     if (client <= 0) {
-        fprintf(stderr, "ERROR accepting connection from gahp_daemon: %s\n", strerror(errno));
-        return 1;
+        fprintf(stderr, "ERROR accepting connection: %s\n", strerror(errno));
+        exit(1);
     }
 
-    /* Tell the remote side which GAHP we want */
-    if (send(client, gahp, strlen(gahp), 0) <= 0) {
-        fprintf(stderr, "ERROR sending GAHP: %s\n", strerror(errno));
+    /* Tell the remote site our CE and GAHP */
+    char message[BUFSIZ];
+    snprintf(message, BUFSIZ, "%s %s", ce, gahp);
+    if (send(client, message, strlen(message), 0) <= 0) {
+        fprintf(stderr, "ERROR sending message: %s\n", strerror(errno));
         close(client);
-        return 1;
+        exit(1);
     }
 
     /* Handle all the I/O between client and server */

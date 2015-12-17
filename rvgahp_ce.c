@@ -80,6 +80,12 @@ int main(int argc, char** argv) {
     }
     printf("interval: %d seconds\n", interval);
 
+    char name[BUFSIZ];
+    if (condor_config_val("RVGAHP_CE_NAME", name, BUFSIZ, NULL) != 0) {
+        fprintf(stderr, "ERROR Unable to read RVGAHP_CE_NAME from config file\n");
+        exit(1);
+    }
+
     while (1) {
         struct addrinfo hints;
         struct addrinfo *servinfo;
@@ -123,14 +129,28 @@ int main(int argc, char** argv) {
 
         printf("Connected to rvgahp_proxy\n");
 
-        /* Get the name of the GAHP to launch from the reverse_gahp */
-        char gahp[BUFSIZ];
-        int sz = read(sck, gahp, BUFSIZ);
+        /* Process the request */
+        char message[BUFSIZ];
+        int sz = read(sck, message, BUFSIZ);
         if (sz <= 0) {
-            fprintf(stderr, "ERROR reading gahp name from rvgahp_proxy\n");
+            fprintf(stderr, "ERROR reading message from rvgahp_proxy\n");
             goto next;
         }
-        gahp[sz] = '\0';
+        message[sz] = '\0';
+
+        /* The message format is: ce_name <sp> gahp_name */
+        char *ce = message;
+        char *gahp = index(message, ' ');
+        if (gahp == NULL) {
+            fprintf(stderr, "ERROR invalid request: %s\n", message);
+            goto next;
+        }
+
+        /* Make sure that the CE name matches */
+        if (strcmp(ce, name) != 0) {
+            fprintf(stderr, "ERROR Requested CE does not match: %s != %s\n", ce, name);
+            goto next;
+        }
 
         printf("Launching GAHP: %s\n", gahp);
 

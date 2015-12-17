@@ -59,8 +59,12 @@ On the remote resource:
 
     RVGAHP_BROKER_HOST = example.com
     RVGAHP_BROKER_PORT = 41000
+
     # Polling interval in seconds
     RVGAHP_CE_INTERVAL = 10
+
+    # Name of the CE (needs to match grid_resource from job)
+    RVGAHP_CE_NAME = hpcc
     ```
 
 1. Start the rvgahp_ce process.
@@ -70,7 +74,7 @@ Example Job
 ```
 universe = grid
 
-grid_resource = batch pbs juve@hpc-pegasus.usc.edu
+grid_resource = batch pbs hpcc
 +remote_cerequirements = EXTRA_ARGUMENTS=="-N testjob -l walltime=00:01:00 -l nodes=1:ppn=1"
 
 executable = /bin/date
