@@ -4,29 +4,30 @@ Reverse GAHP
 This is an implementation of the remote_gahp for Condor that doesn't require
 ssh connections to the remote resource. Instead, it uses connection brokering
 to establish bi-directional communication between the GridManager and GAHP
-processes running on the remote resource.
+processes running on the remote resource. The key benefit of this approach is
+that it enables remote job submission without requiring the remote resource
+to run services that accept incoming network connections (either because of
+security policy, or because of a firewall or something).
 
 It works like this:
 
 ![rvgahp design](doc/rvgahp.png)
 
-The rvgahp_ce process periodically attempts to connect to the rvgahp_proxy.
-When a remote GAHP job is submitted, the GridManager launches an rvgahp_proxy
-process to set up the GAHP servers. The rvgahp_proxy binds to the port that
-the rvgahp_ce process is trying to contact. The next time the rvgahp_ce process
-calls, the connection succeeds and rvgahp_proxy and rvgahp_ce begin to
-talk to each other. The rvgahp_proxy tells the rvgahp_ce which GAHP server
-to start (batch_gahp for job submission or condor_ft-gahp for file transfer).
-The rvgahp_ce launches the GAHP server and connects its stdio to the socket.
-The rvgahp_proxy copies stdin from the GridManager to the socket, and data
+The rvgahp_ce process calls the rvgahp_broker to register itself by name and
+maintains an open connection. If it gets disconnected, it tries to immediately
+reconnect. When a remote GAHP job is submitted, the GridManager launches an
+rvgahp_proxy process to communicate with the GAHP servers. The proxy binds to
+an ephemeral port in Condor's LOWPORT HIGHPORT range specified in the
+condor_config. After that, the proxy calls the broker and asks it to have the
+CE call it back and connect it to a new GAHP process. The proxy tells the
+broker which CE to contact (by name), which GAHP server to start (batch_gahp
+for job submission or condor_ft-gahp for file transfer), and what its address
+is (including the ephemeral port number). The CE connects to the proxy,
+launches the GAHP server, and connects the stdio of the GAHP server to the
+socket. The proxy copies its stdin from the GridManager to the socket, and data
 from the socket to stdout and back to the GridManager. Once all connections are
 established, the job execution proceeds. When the GridManager is done, the GAHP
 servers exit and the connections are torn down.
-
-Right now the rvgahp_ce polls for connections to the proxy, and the whole
-thing is a bit hacky and not secure. A future design will use a broker process
-to make connection setup instant, support multiple CE processes and users, and
-resolve any security issues.
 
 Configuration
 -------------
@@ -36,6 +37,8 @@ On your submit host:
 1. In your condor_config set:
 
     ```
+    LOWPORT = 50000
+    HIGHPORT = 51000
     REMOTE_GAHP = /path/to/rvgahp_proxy
     ```
 
@@ -59,9 +62,6 @@ On the remote resource:
 
     RVGAHP_BROKER_HOST = example.com
     RVGAHP_BROKER_PORT = 41000
-
-    # Polling interval in seconds
-    RVGAHP_CE_INTERVAL = 10
 
     # Name of the CE (needs to match grid_resource from job)
     RVGAHP_CE_NAME = hpcc
