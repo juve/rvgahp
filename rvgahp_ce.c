@@ -10,30 +10,11 @@
 #include <sys/wait.h>
 #include <libgen.h>
 #include <netdb.h>
-#include <time.h>
 
-#include "condor_config.h"
-
-#define log(fmt, ...) \
-    fprintf(stdout, "%s %s[%d]: " fmt, ts(), argv0, \
-            getpid(), ##__VA_ARGS__)
+#include "common.h"
 
 char *argv0 = NULL;
 
-char *ts() {
-    time_t t;
-    time(&t);
-
-    struct tm tm;
-    localtime_r(&t, &tm);
-
-    static char timestamp[1024];
-    snprintf(timestamp, 1024, "%d-%d-%d %02d:%02d:%02d",
-            1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday,
-            tm.tm_hour, tm.tm_min, tm.tm_sec);
-
-    return timestamp;
-}
 
 void usage() {
     fprintf(stderr, "Usage: %s\n", argv0);

@@ -1,8 +1,24 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 
-#include "condor_config.h"
+#include "common.h"
+
+char *timestamp() {
+    time_t t;
+    time(&t);
+
+    struct tm tm;
+    localtime_r(&t, &tm);
+
+    static char ts[1024];
+    snprintf(ts, 1024, "%d-%d-%d %02d:%02d:%02d",
+            1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday,
+            tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+    return ts;
+}
 
 int condor_config_val(char *var, char *val, size_t valsize, const char *default_val) {
     char cmd[BUFSIZ];
