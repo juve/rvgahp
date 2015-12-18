@@ -2,6 +2,8 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <signal.h>
+#include <sys/types.h>
 
 #include "common.h"
 
@@ -20,7 +22,7 @@ char *timestamp() {
     return ts;
 }
 
-int condor_config_val(char *var, char *val, size_t valsize, const char *default_val) {
+int _condor_config_val(char *var, char *val, size_t valsize, const char *default_val) {
     char cmd[BUFSIZ];
     snprintf(cmd, BUFSIZ, "condor_config_val %s 2>&1", var);
 
@@ -38,6 +40,7 @@ int condor_config_val(char *var, char *val, size_t valsize, const char *default_
     }
 
     int status = pclose(proc);
+    int saverrno = errno;
 
     if (strncmp("Not defined:", buf, 12) == 0) {
         if (default_val == NULL) {
@@ -48,7 +51,7 @@ int condor_config_val(char *var, char *val, size_t valsize, const char *default_
     }
 
     if (status != 0) {
-        fprintf(stderr, "ERROR reading condor_config_val %s:\n", var);
+        fprintf(stderr, "ERROR reading condor_config_val %s: %s\n", var, strerror(saverrno));
         fprintf(stderr, "%s", buf);
         return -1;
     }
@@ -63,5 +66,14 @@ int condor_config_val(char *var, char *val, size_t valsize, const char *default_
     snprintf(val, valsize, "%s", buf);
 
     return 0;
+}
+
+int condor_config_val(char *var, char *val, size_t valsize, const char *default_val) {
+    /* Need to restore the default handler for this function so that wait4()
+     * and, as a result, pclose() work correctly. */
+    void *sigchld_handler = signal(SIGCHLD, SIG_DFL);
+    int result = _condor_config_val(var, val, valsize, default_val);
+    signal(SIGCHLD, sigchld_handler);
+    return result;
 }
 
