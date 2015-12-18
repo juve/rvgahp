@@ -34,6 +34,18 @@ int main(int argc, char **argv) {
     char *sockpath = argv[1];
     char *gahp = argv[2];
 
+    /* If the socket doesn't exist, give it 30 seconds to appear */
+    int tries = 0;
+    while (access(sockpath, R_OK|W_OK) != 0) {
+        tries++;
+        if (tries < 30) {
+            sleep(1);
+        } else {
+            fprintf(stderr, "ERROR No UNIX socket\n");
+            return 1;
+        }
+    }
+
     int sck = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sck < 0) {
         fprintf(stderr, "ERROR creating socket: %s\n", strerror(errno));
