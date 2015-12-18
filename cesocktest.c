@@ -23,11 +23,11 @@ int main(int argc, char **argv) {
         dup(ssh_sock);
         dup(ssh_sock);
         dup(ssh_sock);
-        execl("/bin/sh", "/bin/sh", "-c", "/usr/bin/nc -l 12345", NULL);
-        dprintf(orig_err, "ERROR execing NC\n");
+        execl("/bin/sh", "/bin/sh", "-c", "ssh gideon@gaul.isi.edu '/usr/bin/nc -l 12345'", NULL);
+        dprintf(orig_err, "ERROR execing SSH\n");
         _exit(1);
     } else if (ssh_pid < 0) {
-        fprintf(stderr, "ERROR launching NC\n");
+        fprintf(stderr, "ERROR launching SSH\n");
         exit(1);
     }
 
@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
 
     int ssh_status, gahp_status;
     waitpid(ssh_pid, &ssh_status, 0);
-    printf("NC exited with %d\n", ssh_status);
+    printf("SSH exited with %d\n", ssh_status);
     waitpid(gahp_pid, &gahp_status, 0);
     printf("GAHP exited with %d\n", ssh_status);
 
