@@ -7,57 +7,55 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/poll.h>
 #include <libgen.h>
 
 #include "common.h"
 
-/* TODO Determine CE name from arg1 */
 /* TODO Construct and listen on UNIX domain socket */
 
 #define SECONDS 1000
-#define TIMEOUT (300*SECONDS)
+#define MINUTES (60*SECONDS)
+#define TIMEOUT (30*MINUTES)
 
 char *argv0 = NULL;
 
 void usage() {
-    fprintf(stderr, "Usage: %s\n", argv0);
-    fprintf(stderr, "This command takes no arguments\n");
+    fprintf(stderr, "Usage: %s SOCKPATH\n\n", argv0);
+    fprintf(stderr, "Where SOCKPATH is the path to the unix domain socket "
+                    "that should be created\n");
 }
 
 int main(int argc, char **argv) {
     argv0 = basename(strdup(argv[0]));
 
-    if (argc != 1) {
-        fprintf(stderr, "Invalid argument\n");
+    if (argc != 2) {
+        fprintf(stderr, "ERROR Invalid argument\n");
         usage();
         exit(1);
     }
 
-    unsigned short port = 41000;
+    char *sockpath = argv[1];
 
-    socklen_t addrlen = sizeof(struct sockaddr_in);
-    struct sockaddr_in this_addr, peer_addr;
-    memset(&this_addr, 0, addrlen);
-    memset(&peer_addr, 0, addrlen);
+    fprintf(stderr, "%s starting...\n", argv0);
+    fprintf(stderr, "UNIX socket: %s\n", sockpath);
 
-    this_addr.sin_port = htons(port);
-    this_addr.sin_family = AF_INET;
-    this_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    /* TODO Check sockpath */
+    unlink(sockpath);
 
-    int sck = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    int sck = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sck < 0) {
         fprintf(stderr, "ERROR creating socket: %s\n", strerror(errno));
         return 1;
     }
 
-    int enable = 1;
-    if (setsockopt(sck, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
-        fprintf(stderr, "ERROR setsockopt(SO_REUSEADDR) failed: %s\n", strerror(errno));
-        return 1;
-    }
+    struct sockaddr_un local;
+    local.sun_family = AF_UNIX;
+    strcpy(local.sun_path, sockpath);
+    socklen_t addrlen = strlen(local.sun_path) + sizeof(local.sun_family);
 
-    if (bind(sck, (struct sockaddr *)&this_addr, addrlen) < 0) {
+    if (bind(sck, (struct sockaddr *)&local, addrlen) < 0) {
         fprintf(stderr, "ERROR binding socket: %s\n", strerror(errno));
         return 1;
     }
@@ -83,11 +81,13 @@ int main(int argc, char **argv) {
             fprintf(stderr, "ERROR polling for connection/stdin close: %s\n", strerror(errno));
             exit(1);
         } else if (rv == 0) {
+            /* TODO Timeout more frequently and make sure our socket didn't get deleted */
             fprintf(stderr, "ERROR timeout occurred\r\n");
             exit(1);
         } else {
             if (ufds[0].revents & POLLIN) {
-                client = accept(sck, (struct sockaddr *)&peer_addr, &addrlen);
+                struct sockaddr_un remote;
+                client = accept(sck, (struct sockaddr *)&remote, &addrlen);
                 if (client < 0) {
                     fprintf(stderr, "ERROR accepting connection: %s\n", strerror(errno));
                     exit(1);
@@ -108,6 +108,9 @@ int main(int argc, char **argv) {
     /* Close the server socket before connecting I/O so the next proxy process
      * can start listening. */
     close(sck);
+
+    /* Remove the socket here */
+    unlink(sockpath);
 
     /* Handle all the I/O between client and server */
     int bytes_read = 0;

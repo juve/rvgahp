@@ -28,11 +28,11 @@ void loop() {
         close(1);
         dup(ssh_sock);
         dup(ssh_sock);
-        execl("/bin/sh", "/bin/sh", "-c", "ssh gideon@gaul.isi.edu '~/Workspace/rvgahp/rvgahp_helper'", NULL);
-        dprintf(orig_err, "ERROR execing SSH\n");
+        execl("/bin/sh", "/bin/sh", "-c", "~/.rvgahp/rvgahp_ssh", NULL);
+        dprintf(orig_err, "ERROR execing ssh script\n");
         _exit(1);
     } else if (ssh_pid < 0) {
-        fprintf(stderr, "ERROR launching SSH\n");
+        fprintf(stderr, "ERROR forking ssh script\n");
         exit(1);
     }
 
@@ -52,7 +52,9 @@ void loop() {
     ssize_t b = read(gahp_sock, buf, BUFSIZ);
     if (b < 0) {
         fprintf(stderr, "ERROR read from SSH failed: %s\n", strerror(errno));
-        goto again;
+        /* This probably happened because the SSH process died */
+        /* TODO Check to see if ssh is running */
+        exit(1);
     }
     if (b == 0) {
         fprintf(stderr, "ERROR SSH socket closed\n");
