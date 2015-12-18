@@ -49,7 +49,7 @@ void loop() {
     /* Get name of GAHP to launch */
     printf("Waiting for request\n");
     char buf[BUFSIZ];
-    size_t b = read(gahp_sock, buf, BUFSIZ);
+    ssize_t b = read(gahp_sock, buf, BUFSIZ);
     if (b < 0) {
         fprintf(stderr, "ERROR read from SSH failed: %s\n", strerror(errno));
         goto again;

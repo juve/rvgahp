@@ -127,7 +127,13 @@ int main(int argc, char **argv) {
         } else {
             if (ufds[0].revents & POLLIN) {
                 bytes_read = recv(client, buf, BUFSIZ, 0);
-                if (bytes_read > 0) {
+                if (bytes_read == 0) {
+                    fprintf(stderr, "Client disconnected\n");
+                    exit(1);
+                } else if (bytes_read < 0) {
+                    fprintf(stderr, "ERROR reading data from client: %s\n", strerror(errno));
+                    exit(1);
+                } else {
                     write(STDOUT_FILENO, buf, bytes_read);
                 }
             }
@@ -137,7 +143,13 @@ int main(int argc, char **argv) {
             }
             if (ufds[1].revents & POLLIN) {
                 bytes_read = read(STDIN_FILENO, buf, BUFSIZ);
-                if (bytes_read > 0) {
+                if (bytes_read == 0) {
+                    fprintf(stderr, "STDIN EOF\n");
+                    exit(1);
+                } else if (bytes_read < 0) {
+                    fprintf(stderr, "ERROR reading from STDIN: %s\n", strerror(errno));
+                    exit(1);
+                } else {
                     send(client, buf, bytes_read, 0);
                 }
             }
