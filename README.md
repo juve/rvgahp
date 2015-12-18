@@ -13,21 +13,21 @@ It works like this:
 
 ![rvgahp design](doc/rvgahp.png)
 
-The rvgahp_ce process calls the rvgahp_broker to register itself by name and
-maintains an open connection. If it gets disconnected, it tries to immediately
-reconnect. When a remote GAHP job is submitted, the GridManager launches an
-rvgahp_proxy process to communicate with the GAHP servers. The proxy binds to
-an ephemeral port in Condor's LOWPORT HIGHPORT range specified in the
-condor_config. After that, the proxy calls the broker and asks it to have the
-CE call it back and connect it to a new GAHP process. The proxy tells the
-broker which CE to contact (by name), which GAHP server to start (batch_gahp
-for job submission or condor_ft-gahp for file transfer), and what its address
-is (including the ephemeral port number). The CE connects to the proxy,
-launches the GAHP server, and connects the stdio of the GAHP server to the
-socket. The proxy copies its stdin from the GridManager to the socket, and data
-from the socket to stdout and back to the GridManager. Once all connections are
-established, the job execution proceeds. When the GridManager is done, the GAHP
-servers exit and the connections are torn down.
+The rvgahp_ce uses SSH to establish a secure connection to the submit host.
+The SSH connection starts a helper process that listens on a UNIX domain
+socket for connections. If the SSH session gets disconnected, the CE
+immediately reconnects. When a remote GAHP job is submitted, the GridManager
+launches an rvgahp_proxy process to communicate with the GAHP servers. The
+proxy connects to the helper and sends the name of the GAHP to start (batch_gahp
+for job submission or condor_ft-gahp for file transfer). The helper forwards
+the request to the CE, which forks the GAHP and connects it to the SSH process
+using a socketpair. Once this is done, it immediately establishes another
+SSH connection to the submit host. The proxy copies its stdin from the
+GridManager to the helper, and data from the helper to stdout and back to the
+GridManager. The helper passes data to the SSH process, and the SSH process
+passes data to the GAHP. Once all connections are established, the job
+execution proceeds. When the GridManager is done, the GAHP servers exit and
+the connections are torn down.
 
 Configuration
 -------------
@@ -37,8 +37,6 @@ On your submit host:
 1. In your condor_config set:
 
     ```
-    LOWPORT = 50000
-    HIGHPORT = 51000
     REMOTE_GAHP = /path/to/rvgahp_proxy
     ```
 
@@ -60,8 +58,7 @@ On the remote resource:
     FT_GAHP_LOG = $(LOG)/FTGahpLog
     FT_GAHP = /usr/sbin/condor_ft-gahp
 
-    RVGAHP_BROKER_HOST = example.com
-    RVGAHP_BROKER_PORT = 41000
+    RVGAHP_CONNECTION = user@example.com
 
     # Name of the CE (needs to match grid_resource from job)
     RVGAHP_CE_NAME = hpcc
