@@ -10,11 +10,11 @@
 #include <sys/wait.h>
 #include <libgen.h>
 #include <netdb.h>
+#include <signal.h>
 
 #include "common.h"
 
 char *argv0 = NULL;
-
 
 void usage() {
     fprintf(stderr, "Usage: %s\n", argv0);
@@ -39,6 +39,105 @@ int set_condor_config() {
     return 0;
 }
 
+void loop() {
+    int socks[2];
+
+    if (socketpair(PF_LOCAL, SOCK_STREAM, 0, socks) < 0) {
+        fprintf(stderr, "ERROR socketpair failed: %s\n", strerror(errno));
+        exit(1);
+    }
+
+    int gahp_sock = socks[0];
+    int ssh_sock = socks[1];
+
+    log("Starting SSH connection\n");
+    pid_t ssh_pid = fork();
+    if (ssh_pid == 0) {
+        int orig_err = dup(STDERR_FILENO);
+        close(gahp_sock);
+        close(0);
+        close(1);
+        dup(ssh_sock);
+        dup(ssh_sock);
+        execl("/bin/sh", "/bin/sh", "-c", "~/.rvgahp/rvgahp_ssh", NULL);
+        dprintf(orig_err, "ERROR execing ssh script\n");
+        _exit(1);
+    } else if (ssh_pid < 0) {
+        fprintf(stderr, "ERROR forking ssh script\n");
+        exit(1);
+    }
+
+    /* Close here so that if the remote process dies, our read returns */
+    close(ssh_sock);
+
+    /* Get name of GAHP to launch */
+    log("Waiting for request\n");
+    char gahp[BUFSIZ];
+    ssize_t b = read(gahp_sock, gahp, BUFSIZ);
+    if (b < 0) {
+        fprintf(stderr, "ERROR read from SSH failed: %s\n", strerror(errno));
+        /* This probably happened because the SSH process died */
+        /* TODO Check to see if ssh is running */
+        exit(1);
+    }
+    if (b == 0) {
+        fprintf(stderr, "ERROR SSH socket closed\n");
+        goto again;
+    }
+
+    /* Trim the message */
+    gahp[b] = '\0';
+    char c = gahp[--b];
+    while (c == '\r' || c == '\n') {
+        gahp[b] = '\0';
+        c = gahp[--b];
+    }
+
+    /* Construct the actual GAHP command */
+    char gahp_command[BUFSIZ];
+    if (strncmp("batch_gahp", gahp, 10) == 0) {
+        char batch_gahp[BUFSIZ]; 
+        if (condor_config_val("BATCH_GAHP", batch_gahp, BUFSIZ, NULL) < 0) {
+            goto again;
+        }
+        char glite_location[BUFSIZ];
+        if (condor_config_val("GLITE_LOCATION", glite_location, BUFSIZ, NULL) < 0) {
+            goto again;
+        }
+        snprintf(gahp_command, BUFSIZ, "GLITE_LOCATION=%s %s", glite_location, batch_gahp);
+    } else if (strncmp("condor_ft-gahp", gahp, 14) == 0) {
+        char ft_gahp[BUFSIZ];
+        if (condor_config_val("FT_GAHP", ft_gahp, BUFSIZ, NULL) < 0) {
+            goto again;
+        }
+        snprintf(gahp_command, BUFSIZ, "%s -f", ft_gahp);
+    } else {
+        dprintf(gahp_sock, "ERROR: Unknown GAHP: %s\n", gahp);
+        goto again;
+    }
+    log("Actual GAHP command: %s\n", gahp_command);
+
+    pid_t gahp_pid = fork();
+    if (gahp_pid == 0) {
+        int orig_err = dup(STDERR_FILENO);
+        close(0);
+        close(1);
+        close(2);
+        dup(gahp_sock);
+        dup(gahp_sock);
+        dup(gahp_sock);
+        execl("/bin/sh", "/bin/sh", "-c", gahp_command, NULL);
+        dprintf(orig_err, "ERROR execing GAHP\n");
+        _exit(1);
+    } else if (gahp_pid < 0) {
+        fprintf(stderr, "ERROR launching GAHP\n");
+        exit(1);
+    }
+
+again:
+    close(gahp_sock);
+}
+
 int main(int argc, char** argv) {
     argv0 = basename(strdup(argv[0]));
 
@@ -56,179 +155,10 @@ int main(int argc, char** argv) {
     }
     log("Config file: %s\n", getenv("CONDOR_CONFIG"));
 
-    char server[1024];
-    if (condor_config_val("RVGAHP_BROKER_HOST", server, 1024, DEFAULT_BROKER_HOST) != 0) {
-        fprintf(stderr, "ERROR Unable to read RVGAHP_BROKER_HOST from config file\n");
-        exit(1);
-    }
-
-    char port[10];
-    if (condor_config_val("RVGAHP_BROKER_PORT", port, 10, DEFAULT_BROKER_PORT) != 0) {
-        fprintf(stderr, "ERROR Unable to read RVGAHP_BROKER_PORT from config file\n");
-        exit(1);
-    }
-    log("Proxy Address: %s:%s\n", server, port);
-
-    char interval_str[10];
-    if (condor_config_val("RVGAHP_CE_INTERVAL", interval_str, 10, DEFAULT_INTERVAL) != 0) {
-        fprintf(stderr, "ERROR Unable to read RVGAHP_CE_INTERVAL from config file\n");
-        exit(1);
-    }
-    int interval;
-    if (sscanf(interval_str, "%d", &interval) != 1) {
-        fprintf(stderr, "ERROR Invalid RVGAHP_CE_INTERVAL: %s\n", interval_str);
-        exit(1);
-    }
-    log("Polling Interval: %d seconds\n", interval);
-
-    char name[BUFSIZ];
-    if (condor_config_val("RVGAHP_CE_NAME", name, BUFSIZ, NULL) != 0) {
-        fprintf(stderr, "ERROR Unable to read RVGAHP_CE_NAME from config file\n");
-        exit(1);
-    }
-    log("CE Name: %s\n", name);
+    signal(SIGCHLD, SIG_IGN);
 
     while (1) {
-        struct addrinfo hints;
-        struct addrinfo *servinfo;
-
-        memset(&hints, 0, sizeof hints);
-        hints.ai_family = AF_UNSPEC;
-        hints.ai_socktype = SOCK_STREAM;
-
-        // get ready to connect
-        int gairv = getaddrinfo(server, port, &hints, &servinfo);
-        if (getaddrinfo(server, port, &hints, &servinfo)) {
-            fprintf(stderr, "ERROR getaddrinfo: %s\n", gai_strerror(gairv));
-            goto next;
-        }
-
-        /* Try any and all addresses */
-        int sck;
-        struct addrinfo *ai;
-        for (ai = servinfo; ai != NULL; ai = ai->ai_next) {
-            sck = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
-            if (sck == -1) {
-                fprintf(stderr, "error creating socket: %s\n", strerror(errno));
-                continue;
-            }
-
-            if (connect(sck, ai->ai_addr, ai->ai_addrlen) == -1) {
-                close(sck);
-                continue;
-            }
-
-            /* If we made it this far, then we are connected */
-            break;
-        }
-
-        freeaddrinfo(servinfo);
-
-        if (ai == NULL) {
-            /* We failed to connect, so wait a few and try again */
-            goto next;
-        }
-
-        log("Connected to rvgahp_proxy\n");
-
-        /* Process the request */
-        char message[BUFSIZ];
-        int sz = read(sck, message, BUFSIZ);
-        if (sz <= 0) {
-            fprintf(stderr, "ERROR reading message from rvgahp_proxy\n");
-            goto next;
-        }
-        message[sz] = '\0';
-
-        /* The message format is: ce_name <sp> gahp_name */
-        char *ce = message;
-        char *gahp = index(message, ' ');
-        if (gahp == NULL) {
-            fprintf(stderr, "ERROR invalid request: %s\n", message);
-            goto next;
-        }
-        gahp[0] = '\0';
-        gahp++;
-
-        /* Make sure that the CE name matches */
-        if (strcmp(ce, name) != 0) {
-            fprintf(stderr, "ERROR Requested CE does not match: %s != %s\n", ce, name);
-            goto next;
-        }
-
-        log("Launching GAHP: %s\n", gahp);
-
-        /* Construct the actual GAHP command */
-        char gahp_command[BUFSIZ];
-        if (strncmp("batch_gahp", gahp, 10) == 0) {
-            char batch_gahp[BUFSIZ]; 
-            if (condor_config_val("BATCH_GAHP", batch_gahp, BUFSIZ, NULL) < 0) {
-                goto next;
-            }
-            char glite_location[BUFSIZ];
-            if (condor_config_val("GLITE_LOCATION", glite_location, BUFSIZ, NULL) < 0) {
-                goto next;
-            }
-            snprintf(gahp_command, BUFSIZ, "GLITE_LOCATION=%s %s", glite_location, batch_gahp);
-        } else if (strncmp("condor_ft-gahp", gahp, 14) == 0) {
-            char ft_gahp[BUFSIZ];
-            if (condor_config_val("FT_GAHP", ft_gahp, BUFSIZ, NULL) < 0) {
-                goto next;
-            }
-            snprintf(gahp_command, BUFSIZ, "%s -f", ft_gahp);
-        } else {
-            fprintf(stderr, "ERROR: Unknown GAHP: %s\n", gahp);
-            goto next;
-        }
-        log("Actual GAHP command: %s\n", gahp_command);
-
-        /* Double fork to detach GAHP processes */
-        pid_t c1 = fork();
-        if (c1 > 0) {
-            /* Wait for the GAHP process' parent to exit */
-            int status;
-            waitpid(c1, &status, 0);
-            if (status != 0) {
-                fprintf(stderr, "ERROR starting GAHP");
-            }
-        } else if(c1 == 0) {
-            /* Make this process the session leader */
-            setsid();
-
-            pid_t c2 = fork();
-            if (c2 > 0) {
-                exit(0);
-            } else if (c2 == 0) {
-                chdir("/");
-
-                int original_error = dup(2);
-
-                close(0); /* close standard input  */
-                close(1); /* close standard output */
-                close(2); /* close standard error  */
-
-                if (dup(sck) != 0 || dup(sck) != 1 || dup(sck) != 2) {
-                    dprintf(original_error, "ERROR duplicating socket for stdin/stdout/stderr: %s\n", strerror(errno));
-                    exit(1);
-                }
-
-                execl("/bin/sh", "/bin/sh", "-c", gahp_command, NULL);
-                dprintf(original_error, "ERROR launching GAHP: %s\n", strerror(errno));
-                _exit(1);
-            } else {
-                fprintf(stderr, "ERROR forking GAHP process (2): %s\n", strerror(errno));
-                exit(1);
-            }
-        } else {
-            fprintf(stderr, "Error forking GAHP process (1): %s\n", strerror(errno));
-        }
-
-next:
-        /* We no longer need the client socket */
-        close(sck);
-
-        /* Wait a few seconds before trying again */
-        sleep(interval);
+        loop();
     }
 
     exit(0);
