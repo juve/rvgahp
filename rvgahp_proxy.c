@@ -12,6 +12,9 @@
 
 #include "common.h"
 
+/* TODO Determine UNIX socket name from ce name */
+/* TODO Connect to UNIX socket */
+
 char *argv0 = NULL;
 
 void usage() {
