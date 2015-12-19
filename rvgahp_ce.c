@@ -16,6 +16,11 @@
 
 char *argv0 = NULL;
 
+void sigterm(int sig) {
+    log(stderr, "Recieved SIGTERM\n");
+    exit(1);
+}
+
 void usage() {
     fprintf(stderr, "Usage: %s\n", argv0);
     fprintf(stderr, "This command has no options\n");
@@ -156,6 +161,7 @@ int main(int argc, char** argv) {
     log(stdout, "Config file: %s\n", getenv("CONDOR_CONFIG"));
 
     signal(SIGCHLD, SIG_IGN);
+    signal(SIGTERM, sigterm);
 
     while (1) {
         loop();
