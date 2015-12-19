@@ -63,14 +63,13 @@ On the remote resource:
 
     ```
     #!/bin/bash
-    ssh -o "BatchMode yes" user@submithost "/path/to/rvgahp_helper /tmp/user.hpcc.sock"
+    ssh -o "BatchMode yes" -i id_rsa_rvgahp user@submithost "/path/to/rvgahp_helper /tmp/user.hpcc.sock"
     ```
 
-    This script should have the necessary options to make a connection. For
-    example, if you want to use a specific SSH private key, then add the -i
-    argument to ssh. The key should be passwordless, or otherwise you should
-    run an ssh-agent and add the password. Test this script to make sure it
-    starts rvgahp_helper on your submit host.
+    It is recommended that you create a passwordless ssh key (called id_rsa_rvgahp
+    in this example) that can be used to log into your submit host. Logins under
+    this key can be restriced to running the rvgahp_helper process in your
+    authorized_keys file.
 
 1. Start the rvgahp_ce process.
 
