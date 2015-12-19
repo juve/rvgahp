@@ -9,7 +9,7 @@
 
 #define log(stream, fmt, ...) \
     fprintf(stream, "%s %s[%d]: " fmt, timestamp(), argv0, \
-            getpid(), ##__VA_ARGS__)
+            getpid(), ##__VA_ARGS__); fflush(stream)
 
 char *timestamp();
 int condor_config_val(char *var, char *val, size_t valsize, const char *default_val);
