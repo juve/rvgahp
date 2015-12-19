@@ -4,25 +4,28 @@
 #include <time.h>
 #include <signal.h>
 #include <sys/types.h>
+#include <sys/time.h>
 
 #include "common.h"
 
 char *timestamp() {
-    time_t t;
-    time(&t);
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+
+    time_t t = tv.tv_sec;
 
     struct tm tm;
     localtime_r(&t, &tm);
 
-    static char ts[1024];
-    snprintf(ts, 1024, "%d-%d-%d %02d:%02d:%02d",
+    static char ts[32];
+    snprintf(ts, 32, "%d-%d-%d %02d:%02d:%02d.%06ld",
             1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday,
-            tm.tm_hour, tm.tm_min, tm.tm_sec);
+            tm.tm_hour, tm.tm_min, tm.tm_sec, tv.tv_usec);
 
     return ts;
 }
 
-int _condor_config_val(char *var, char *val, size_t valsize, const char *default_val) {
+static int _condor_config_val(char *var, char *val, size_t valsize, const char *default_val) {
     char cmd[BUFSIZ];
     snprintf(cmd, BUFSIZ, "condor_config_val %s 2>&1", var);
 
