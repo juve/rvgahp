@@ -38,15 +38,15 @@ int main(int argc, char **argv) {
 
     char *sockpath = argv[1];
 
-    fprintf(stderr, "%s starting...\n", argv0);
-    fprintf(stderr, "UNIX socket: %s\n", sockpath);
+    log(stderr, "%s starting...\n", argv0);
+    log(stderr, "UNIX socket: %s\n", sockpath);
 
     /* TODO Check sockpath */
     unlink(sockpath);
 
     int sck = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sck < 0) {
-        fprintf(stderr, "ERROR creating socket: %s\n", strerror(errno));
+        log(stderr, "ERROR creating socket: %s\n", strerror(errno));
         return 1;
     }
 
@@ -56,12 +56,12 @@ int main(int argc, char **argv) {
     socklen_t addrlen = strlen(local.sun_path) + sizeof(local.sun_family);
 
     if (bind(sck, (struct sockaddr *)&local, addrlen) < 0) {
-        fprintf(stderr, "ERROR binding socket: %s\n", strerror(errno));
+        log(stderr, "ERROR binding socket: %s\n", strerror(errno));
         return 1;
     }
 
     if (listen(sck, 0) < 0) {
-        fprintf(stderr, "ERROR listening on socket: %s\n", strerror(errno));
+        log(stderr, "ERROR listening on socket: %s\n", strerror(errno));
         return 1;
     }
 
@@ -78,28 +78,28 @@ int main(int argc, char **argv) {
 
         int rv = poll(ufds, 2, TIMEOUT);
         if (rv == -1) {
-            fprintf(stderr, "ERROR polling for connection/stdin close: %s\n", strerror(errno));
+            log(stderr, "ERROR polling for connection/stdin close: %s\n", strerror(errno));
             exit(1);
         } else if (rv == 0) {
             /* TODO Timeout more frequently and make sure our socket didn't get deleted */
-            fprintf(stderr, "ERROR timeout occurred\r\n");
+            log(stderr, "ERROR timeout occurred\r\n");
             exit(1);
         } else {
             if (ufds[0].revents & POLLIN) {
                 struct sockaddr_un remote;
                 client = accept(sck, (struct sockaddr *)&remote, &addrlen);
                 if (client < 0) {
-                    fprintf(stderr, "ERROR accepting connection: %s\n", strerror(errno));
+                    log(stderr, "ERROR accepting connection: %s\n", strerror(errno));
                     exit(1);
                 }
                 break;
             }
             if (ufds[0].revents != 0 && ufds[0].revents != POLLHUP) {
-                fprintf(stderr, "ERROR on listening socket!\n");
+                log(stderr, "ERROR on listening socket!\n");
                 exit(1);
             }
             if (ufds[1].revents != 0) {
-                fprintf(stderr, "ERROR stdin closed\n");
+                log(stderr, "ERROR stdin closed\n");
                 exit(1);
             }
         }
@@ -125,39 +125,39 @@ int main(int argc, char **argv) {
 
         int rv = poll(ufds, 2, -1);
         if (rv == -1) {
-            fprintf(stderr, "ERROR polling socket/stdin: %s\n", strerror(errno));
+            log(stderr, "ERROR polling socket/stdin: %s\n", strerror(errno));
             exit(1);
         } else {
             if (ufds[0].revents & POLLIN) {
                 bytes_read = recv(client, buf, BUFSIZ, 0);
                 if (bytes_read == 0) {
-                    fprintf(stderr, "Client disconnected\n");
+                    log(stderr, "Client disconnected\n");
                     exit(1);
                 } else if (bytes_read < 0) {
-                    fprintf(stderr, "ERROR reading data from client: %s\n", strerror(errno));
+                    log(stderr, "ERROR reading data from client: %s\n", strerror(errno));
                     exit(1);
                 } else {
                     write(STDOUT_FILENO, buf, bytes_read);
                 }
             }
             if (ufds[0].revents != 0 && ufds[0].revents != POLLIN) {
-                fprintf(stderr, "ERROR on client socket!\n");
+                log(stderr, "ERROR on client socket!\n");
                 exit(1);
             }
             if (ufds[1].revents & POLLIN) {
                 bytes_read = read(STDIN_FILENO, buf, BUFSIZ);
                 if (bytes_read == 0) {
-                    fprintf(stderr, "STDIN EOF\n");
+                    log(stderr, "STDIN EOF\n");
                     exit(1);
                 } else if (bytes_read < 0) {
-                    fprintf(stderr, "ERROR reading from STDIN: %s\n", strerror(errno));
+                    log(stderr, "ERROR reading from STDIN: %s\n", strerror(errno));
                     exit(1);
                 } else {
                     send(client, buf, bytes_read, 0);
                 }
             }
             if (ufds[1].revents & POLLHUP) {
-                fprintf(stderr, "STDIN closed\n");
+                log(stderr, "STDIN closed\n");
                 exit(1);
             }
         }

@@ -7,8 +7,8 @@
 
 #include <unistd.h>
 
-#define log(fmt, ...) \
-    fprintf(stdout, "%s %s[%d]: " fmt, timestamp(), argv0, \
+#define log(stream, fmt, ...) \
+    fprintf(stream, "%s %s[%d]: " fmt, timestamp(), argv0, \
             getpid(), ##__VA_ARGS__)
 
 char *timestamp();

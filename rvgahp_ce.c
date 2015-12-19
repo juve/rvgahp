@@ -24,14 +24,14 @@ void usage() {
 int set_condor_config() {
     char *homedir = getenv("HOME");
     if (homedir == NULL) {
-        fprintf(stderr, "ERROR HOME is not set in environment");
+        log(stderr, "ERROR HOME is not set in environment");
         return -1;
     }
 
     char config_file[BUFSIZ];
     snprintf(config_file, BUFSIZ, "%s/%s", homedir, ".rvgahp/condor_config.rvgahp");
     if (access(config_file, R_OK) < 0) {
-        fprintf(stderr, "ERROR Cannot find config file %s", config_file);
+        log(stderr, "ERROR Cannot find config file %s", config_file);
         return -1;
     }
 
@@ -43,14 +43,14 @@ void loop() {
     int socks[2];
 
     if (socketpair(PF_LOCAL, SOCK_STREAM, 0, socks) < 0) {
-        fprintf(stderr, "ERROR socketpair failed: %s\n", strerror(errno));
+        log(stderr, "ERROR socketpair failed: %s\n", strerror(errno));
         exit(1);
     }
 
     int gahp_sock = socks[0];
     int ssh_sock = socks[1];
 
-    log("Starting SSH connection\n");
+    log(stdout, "Starting SSH connection\n");
     pid_t ssh_pid = fork();
     if (ssh_pid == 0) {
         int orig_err = dup(STDERR_FILENO);
@@ -63,7 +63,7 @@ void loop() {
         dprintf(orig_err, "ERROR execing ssh script\n");
         _exit(1);
     } else if (ssh_pid < 0) {
-        fprintf(stderr, "ERROR forking ssh script\n");
+        log(stderr, "ERROR forking ssh script\n");
         exit(1);
     }
 
@@ -71,17 +71,17 @@ void loop() {
     close(ssh_sock);
 
     /* Get name of GAHP to launch */
-    log("Waiting for request\n");
+    log(stdout, "Waiting for request\n");
     char gahp[BUFSIZ];
     ssize_t b = read(gahp_sock, gahp, BUFSIZ);
     if (b < 0) {
-        fprintf(stderr, "ERROR read from SSH failed: %s\n", strerror(errno));
+        log(stderr, "ERROR read from SSH failed: %s\n", strerror(errno));
         /* This probably happened because the SSH process died */
         /* TODO Check to see if ssh is running */
         exit(1);
     }
     if (b == 0) {
-        fprintf(stderr, "ERROR SSH socket closed\n");
+        log(stderr, "ERROR SSH socket closed\n");
         goto again;
     }
 
@@ -115,7 +115,7 @@ void loop() {
         dprintf(gahp_sock, "ERROR: Unknown GAHP: %s\n", gahp);
         goto again;
     }
-    log("Actual GAHP command: %s\n", gahp_command);
+    log(stdout, "Actual GAHP command: %s\n", gahp_command);
 
     pid_t gahp_pid = fork();
     if (gahp_pid == 0) {
@@ -130,7 +130,7 @@ void loop() {
         dprintf(orig_err, "ERROR execing GAHP\n");
         _exit(1);
     } else if (gahp_pid < 0) {
-        fprintf(stderr, "ERROR launching GAHP\n");
+        log(stderr, "ERROR launching GAHP\n");
         exit(1);
     }
 
@@ -147,13 +147,13 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    log("%s starting...\n", argv0);
+    log(stdout, "%s starting...\n", argv0);
 
     /* Set up configuration */
     if (set_condor_config() < 0) {
         exit(1);
     }
-    log("Config file: %s\n", getenv("CONDOR_CONFIG"));
+    log(stdout, "Config file: %s\n", getenv("CONDOR_CONFIG"));
 
     signal(SIGCHLD, SIG_IGN);
 
