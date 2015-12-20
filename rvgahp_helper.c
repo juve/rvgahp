@@ -10,12 +10,13 @@
 #include <sys/un.h>
 #include <sys/poll.h>
 #include <libgen.h>
+#include <sys/stat.h>
 
 #include "common.h"
 
 #define SECONDS 1000
 #define MINUTES (60*SECONDS)
-#define TIMEOUT (60*MINUTES)
+#define TIMEOUT (1*MINUTES)
 
 char *argv0 = NULL;
 
@@ -62,6 +63,14 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    /* Get the INODE number of the socket so we can check it later */
+    struct stat st;
+    if (stat(sockpath, &st) < 0) {
+        log(stderr, "ERROR stat()ing socket: %s\n", strerror(errno));
+        return 1;
+    }
+    ino_t sock_inode = st.st_ino;
+
     /* Initally poll to accept and check stdin */
     struct pollfd ufds[2];
     int client = -1;
@@ -78,8 +87,16 @@ int main(int argc, char **argv) {
             log(stderr, "ERROR polling for connection/stdin close: %s\n", strerror(errno));
             exit(1);
         } else if (rv == 0) {
-            log(stderr, "ERROR timeout occurred while waiting for proxy\n");
-            exit(1);
+            /* Check to make sure our socket file still exists */
+            struct stat st;
+            if (stat(sockpath, &st) < 0) {
+                log(stderr, "ERROR stat()ing socket: %s\n", strerror(errno));
+                exit(1);
+            }
+            if (sock_inode != st.st_ino) {
+                log(stderr, "ERROR UNIX socket replaced\n");
+                exit(1);
+            }
         } else {
             if (ufds[0].revents & POLLIN) {
                 struct sockaddr_un remote;
