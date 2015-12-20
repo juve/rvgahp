@@ -11,6 +11,7 @@
 #include <libgen.h>
 #include <netdb.h>
 #include <signal.h>
+#include <math.h>
 
 #include "common.h"
 
@@ -44,7 +45,7 @@ int set_condor_config() {
     return 0;
 }
 
-void loop() {
+int loop() {
     int socks[2];
 
     if (socketpair(PF_LOCAL, SOCK_STREAM, 0, socks) < 0) {
@@ -83,11 +84,11 @@ void loop() {
         log(stderr, "ERROR read from SSH failed: %s\n", strerror(errno));
         /* This probably happened because the SSH process died */
         /* TODO Check to see if ssh is running */
-        exit(1);
+        goto error;
     }
     if (b == 0) {
         log(stderr, "ERROR SSH socket closed\n");
-        goto again;
+        goto error;
     }
 
     /* Trim the message */
@@ -103,22 +104,22 @@ void loop() {
     if (strncmp("batch_gahp", gahp, 10) == 0) {
         char batch_gahp[BUFSIZ]; 
         if (condor_config_val("BATCH_GAHP", batch_gahp, BUFSIZ, NULL) < 0) {
-            goto again;
+            goto error;
         }
         char glite_location[BUFSIZ];
         if (condor_config_val("GLITE_LOCATION", glite_location, BUFSIZ, NULL) < 0) {
-            goto again;
+            goto error;
         }
         snprintf(gahp_command, BUFSIZ, "GLITE_LOCATION=%s %s", glite_location, batch_gahp);
     } else if (strncmp("condor_ft-gahp", gahp, 14) == 0) {
         char ft_gahp[BUFSIZ];
         if (condor_config_val("FT_GAHP", ft_gahp, BUFSIZ, NULL) < 0) {
-            goto again;
+            goto error;
         }
         snprintf(gahp_command, BUFSIZ, "%s -f", ft_gahp);
     } else {
         dprintf(gahp_sock, "ERROR: Unknown GAHP: %s\n", gahp);
-        goto again;
+        goto error;
     }
     log(stdout, "Actual GAHP command: %s\n", gahp_command);
 
@@ -139,8 +140,12 @@ void loop() {
         exit(1);
     }
 
-again:
     close(gahp_sock);
+    return 0;
+
+error:
+    close(gahp_sock);
+    return 1;
 }
 
 int main(int argc, char** argv) {
@@ -163,8 +168,17 @@ int main(int argc, char** argv) {
     signal(SIGCHLD, SIG_IGN);
     signal(SIGTERM, sigterm);
 
+    int failures = 0;
     while (1) {
-        loop();
+        if (loop() == 0) {
+            failures = 0;
+        } else {
+            failures++;
+            double sleeptime = pow(2, failures);
+            if (sleeptime > 300) sleeptime = 300;
+            log(stdout, "Failure occured, waiting %d seconds to respawn\n", (int)sleeptime);
+            sleep(sleeptime);
+        }
     }
 
     exit(0);

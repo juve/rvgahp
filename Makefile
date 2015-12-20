@@ -1,6 +1,7 @@
 
 TARGETS=rvgahp_ce rvgahp_proxy rvgahp_helper
 CFLAGS=-Wall --std=gnu99
+LDFLAGS=-lm
 
 all: $(TARGETS)
 
