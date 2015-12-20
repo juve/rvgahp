@@ -62,18 +62,17 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    /* Tell the remote site our GAHP */
+    /* Tell the remote site the GAHP we want to start */
     if (dprintf(sck, "%s\r\n", gahp) < 0) {
-        fprintf(stderr, "ERROR sending message: %s\n", strerror(errno));
+        fprintf(stderr, "ERROR sending GAHP message to helper: %s\n", strerror(errno));
         close(sck);
         exit(1);
     }
 
-    /* Handle all the I/O between GAHP and helper */
+    /* Handle all the I/O between GridManager and helper */
     int bytes_read = 0;
     char buf[BUFSIZ];
     struct pollfd ufds[2];
-
     while (1) {
         ufds[0].fd = sck;
         ufds[0].events = POLLIN;
@@ -90,16 +89,19 @@ int main(int argc, char **argv) {
             if (ufds[0].revents & POLLIN) {
                 bytes_read = recv(sck, buf, BUFSIZ, 0);
                 if (bytes_read == 0) {
-                    /* Connection closed, should get POLLHUP */
+                    /* Helper closed connection, should get POLLHUP */
                 } else if (bytes_read > 0) {
-                    write(STDOUT_FILENO, buf, bytes_read);
+                    if (write(STDOUT_FILENO, buf, bytes_read) < 0) {
+                        fprintf(stderr, "ERROR writing data to GridManager (stdout): %s\n", strerror(errno));
+                        break;
+                    }
                 } else {
-                    fprintf(stderr, "ERROR reading from socket: %s\n", strerror(errno));
+                    fprintf(stderr, "ERROR reading from helper socket: %s\n", strerror(errno));
                     break;
                 }
             }
             if (ufds[0].revents & POLLHUP) {
-                fprintf(stderr, "Helper hung up\n");
+                fprintf(stderr, "Helper hung up (socket disconnected)\n");
                 break;
             }
 
@@ -108,14 +110,18 @@ int main(int argc, char **argv) {
                 if (bytes_read == 0) {
                     /* GridManager closed stdin, should get POLLHUP */
                 } else if (bytes_read > 0) {
-                    send(sck, buf, bytes_read, 0);
+                    if (send(sck, buf, bytes_read, 0)) {
+                        fprintf(stderr, "ERROR sending data to helper socket: %s\n", strerror(errno));
+                        break;
+                    }
                 } else {
-                    fprintf(stderr, "ERROR reading from stdin\n");
+                    fprintf(stderr, "ERROR reading from GridManager (stdin)\n");
                     break;
                 }
             }
             if (ufds[1].revents & POLLHUP) {
-                fprintf(stderr, "GridManager hung up\n");
+                /* Likely won't be seen */
+                fprintf(stderr, "GridManager hung up (stdin closed)\n");
                 break;
             }
         }

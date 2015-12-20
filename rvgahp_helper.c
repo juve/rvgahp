@@ -13,11 +13,9 @@
 
 #include "common.h"
 
-/* TODO Construct and listen on UNIX domain socket */
-
 #define SECONDS 1000
 #define MINUTES (60*SECONDS)
-#define TIMEOUT (30*MINUTES)
+#define TIMEOUT (60*MINUTES)
 
 char *argv0 = NULL;
 
@@ -41,7 +39,6 @@ int main(int argc, char **argv) {
     log(stderr, "%s starting...\n", argv0);
     log(stderr, "UNIX socket: %s\n", sockpath);
 
-    /* TODO Check sockpath */
     unlink(sockpath);
 
     int sck = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -81,8 +78,7 @@ int main(int argc, char **argv) {
             log(stderr, "ERROR polling for connection/stdin close: %s\n", strerror(errno));
             exit(1);
         } else if (rv == 0) {
-            /* TODO Timeout more frequently and make sure our socket didn't get deleted */
-            log(stderr, "ERROR timeout occurred\r\n");
+            log(stderr, "ERROR timeout occurred while waiting for proxy\n");
             exit(1);
         } else {
             if (ufds[0].revents & POLLIN) {
@@ -95,17 +91,17 @@ int main(int argc, char **argv) {
                 break;
             }
             if (ufds[0].revents != 0 && ufds[0].revents != POLLHUP) {
-                log(stderr, "ERROR on listening socket!\n");
+                log(stderr, "ERROR on UNIX listening socket!\n");
                 exit(1);
             }
             if (ufds[1].revents != 0) {
-                log(stderr, "ERROR stdin closed\n");
+                log(stderr, "ERROR stdin from SSH closed\n");
                 exit(1);
             }
         }
     }
 
-    /* Close the server socket before connecting I/O so the next proxy process
+    /* Close the server socket before connecting I/O so the next helper process
      * can start listening. */
     close(sck);
 
@@ -125,39 +121,46 @@ int main(int argc, char **argv) {
 
         int rv = poll(ufds, 2, -1);
         if (rv == -1) {
-            log(stderr, "ERROR polling socket/stdin: %s\n", strerror(errno));
+            log(stderr, "ERROR polling UNIX socket/stdin: %s\n", strerror(errno));
             exit(1);
         } else {
             if (ufds[0].revents & POLLIN) {
                 bytes_read = recv(client, buf, BUFSIZ, 0);
                 if (bytes_read == 0) {
-                    log(stderr, "Client disconnected\n");
-                    exit(1);
+                    /* Proxy disconnected, should get POLLHUP */
                 } else if (bytes_read < 0) {
-                    log(stderr, "ERROR reading data from client: %s\n", strerror(errno));
+                    log(stderr, "ERROR reading data from proxy socket: %s\n", strerror(errno));
                     exit(1);
                 } else {
-                    write(STDOUT_FILENO, buf, bytes_read);
+                    if (write(STDOUT_FILENO, buf, bytes_read) < 0) {
+                        /* If that write failed, then this log message probably
+                         * will too :-/ */
+                        log(stderr, "ERROR writing to SSH (stdout): %s\n", strerror(errno));
+                        exit(1);
+                    }
                 }
             }
-            if (ufds[0].revents != 0 && ufds[0].revents != POLLIN) {
-                log(stderr, "ERROR on client socket!\n");
+            if (ufds[0].revents & POLLHUP) {
+                log(stderr, "Proxy disconnected (socket closed)\n");
                 exit(1);
             }
             if (ufds[1].revents & POLLIN) {
                 bytes_read = read(STDIN_FILENO, buf, BUFSIZ);
                 if (bytes_read == 0) {
-                    log(stderr, "STDIN EOF\n");
-                    exit(1);
+                    /* SSH closed stdin, should get POLLHUP */
                 } else if (bytes_read < 0) {
-                    log(stderr, "ERROR reading from STDIN: %s\n", strerror(errno));
+                    log(stderr, "ERROR reading from SSH/stdin: %s\n", strerror(errno));
                     exit(1);
                 } else {
-                    send(client, buf, bytes_read, 0);
+                    if (send(client, buf, bytes_read, 0) < 0) {
+                        log(stderr, "ERROR sending message to proxy: %s\n", strerror(errno));
+                        exit(1);
+                    }
                 }
             }
             if (ufds[1].revents & POLLHUP) {
-                log(stderr, "STDIN closed\n");
+                /* Likely will never be seen */
+                log(stderr, "SSH disconnected (stdin closed)\n");
                 exit(1);
             }
         }
