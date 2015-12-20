@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
                 if (bytes_read == 0) {
                     /* GridManager closed stdin, should get POLLHUP */
                 } else if (bytes_read > 0) {
-                    if (send(sck, buf, bytes_read, 0)) {
+                    if (send(sck, buf, bytes_read, 0) < 0) {
                         fprintf(stderr, "ERROR sending data to helper socket: %s\n", strerror(errno));
                         break;
                     }
