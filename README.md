@@ -63,7 +63,7 @@ On the remote resource:
 
     ```
     #!/bin/bash
-    ssh -o "BatchMode yes" -i id_rsa_rvgahp user@submithost "/path/to/rvgahp_helper /tmp/user.hpcc.sock"
+    ssh -o "ServerAliveInterval 60" -o "BatchMode yes" -i id_rsa_rvgahp user@submithost "/path/to/rvgahp_helper /tmp/user.hpcc.sock"
     ```
 
     It is recommended that you create a passwordless ssh key (called id_rsa_rvgahp
