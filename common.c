@@ -33,7 +33,7 @@ char *timestamp() {
     localtime_r(&t, &tm);
 
     static char ts[32];
-    snprintf(ts, 32, "%d-%d-%d %02d:%02d:%02d.%06ld",
+    snprintf(ts, 32, "%d-%d-%d %02d:%02d:%02d.%06lu",
             1900 + tm.tm_year, 1 + tm.tm_mon, tm.tm_mday,
             tm.tm_hour, tm.tm_min, tm.tm_sec, tv.tv_usec);
 
