@@ -6,8 +6,8 @@ ssh connections to the remote resource. Instead, it uses connection brokering
 to establish bi-directional communication between the GridManager and GAHP
 processes running on the remote resource. The key benefit of this approach is
 that it enables remote job submission without requiring the remote resource
-to run services that accept incoming network connections (either because of
-security policy, or because of a firewall or something).
+to run services that accept incoming network connections (usually because of
+security policy).
 
 It works like this:
 
@@ -68,8 +68,8 @@ On the remote resource:
 
     It is recommended that you create a passwordless ssh key (called id_rsa_rvgahp
     in this example) that can be used to log into your submit host. Logins under
-    this key can be restriced to running the rvgahp_helper process in your
-    authorized_keys file.
+    this key can be restriced to running only the rvgahp_helper process by editing
+    your authorized_keys file.
 
 1. Start the rvgahp_ce process.
 
