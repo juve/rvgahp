@@ -34,15 +34,33 @@ Configuration
 
 On your submit host:
 
-1. In your condor_config set:
+1. In your condor_config.local set:
 
     ```
     REMOTE_GAHP = /path/to/rvgahp_proxy
     ```
+1. (Optional) In your condor_config.local set a throttle for the maximum number of
+   submitted jobs. You can set it for all resources using the batch GAHP:
+
+    ```
+    GRIDMANAGER_MAX_SUBMITTED_JOBS_PER_RESOURCE_BATCH = 2
+    ```
+
+   Or you can set it for a specific resource:
+
+    ```
+    # /tmp/user.hpcc.sock is the name of the UNIX socket in the diagram
+    # above. It should match the grid_resource from the job and the argument
+    # for the rvgahp_helper in the ssh command below.
+    GRIDMANAGER_MAX_SUBMITTED_JOBS_PER_RESOURCE = 2, /tmp/user.hpcc.sock
+    ```
 
 On the remote resource:
 
-1. Make sure the batch_gahp/glite/blahp is installed and configured correctly
+1. Make sure the batch_gahp/glite/blahp is installed and configured correctly.
+   This can be tricky to get right, so ask 
+   [Pegasus Support](http://pegasus.isi.edu/support) for help if you have
+   problems.
 1. Create $HOME/.rvgahp
 1. Create a $HOME/.rvgahp/condor_config.rvgahp
 1. In condor_config.rvgahp set:
@@ -63,35 +81,30 @@ On the remote resource:
 
     ```
     #!/bin/bash
-    ssh -o "ServerAliveInterval 60" -o "BatchMode yes" -i id_rsa_rvgahp user@submithost "/path/to/rvgahp_helper /tmp/user.hpcc.sock"
+    exec ssh -o "ServerAliveInterval 60" -o "BatchMode yes" -i id_rsa_rvgahp user@submithost "/path/to/rvgahp_helper /tmp/user.hpcc.sock"
     ```
 
-    It is recommended that you create a passwordless ssh key (called id_rsa_rvgahp
-    in this example) that can be used to log into your submit host. Logins under
-    this key can be restriced to running only the rvgahp_helper process by editing
-    your authorized_keys file.
+   It is recommended that you create a passwordless ssh key (called id_rsa_rvgahp
+   in this example) that can be used to log into your submit host. Test this script
+   manually to make sure that it works before continuing to the next step.
 
 1. Start the rvgahp_ce process.
 
-Example Job
------------
+Example Condor Job
+------------------
+The most important keys below are `grid_resource`, which specifies that you want to use the batch GAHP for a PBS cluster and the path to the UNIX socket to use, and `+remote_cerequirements`, which specifies key parameters to pass to the batch GAHP.
+
 ```
 universe = grid
-
 grid_resource = batch pbs /tmp/user.hpcc.sock
 +remote_cerequirements = EXTRA_ARGUMENTS=="-N testjob -l walltime=00:01:00 -l nodes=1:ppn=1"
 
 executable = /bin/date
 transfer_executable = False
 
-output = test_$(cluster).$(process).out
-error = test_$(cluster).$(process).err
-log = test_$(cluster).$(process).log
-
-should_transfer_files = YES
-when_to_transfer_output = ON_EXIT
-copy_to_spool = false
-notification = NEVER
+output = test.out
+error = test.err
+log = test.log
 
 queue 1
 ```
