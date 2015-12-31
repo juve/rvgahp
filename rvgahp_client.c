@@ -26,8 +26,6 @@
 #include <libgen.h>
 #include <sys/un.h>
 
-#include "common.h"
-
 char *argv0 = NULL;
 
 void usage() {
