@@ -243,9 +243,11 @@ int main(int argc, char** argv) {
             failures = 0;
         } else {
             failures++;
-            double sleeptime = pow(2, failures);
-            if (sleeptime > 300) sleeptime = 300;
-            log(stderr, "Failure occured, waiting %d seconds to respawn\n", (int)sleeptime);
+            unsigned int sleeptime = 300;
+            if (failures < 9) {
+                sleeptime = (unsigned int)pow(2, failures);
+            }
+            log(stderr, "Failure occured, waiting %u seconds to respawn\n", sleeptime);
             sleep(sleeptime);
         }
     }
