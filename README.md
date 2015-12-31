@@ -13,17 +13,17 @@ It works like this:
 
 ![rvgahp design](doc/rvgahp.png)
 
-The CE daemon uses SSH to establish a secure connection to the submit host.
-The SSH connection starts a helper process that listens on a UNIX domain socket
-for connections. If the SSH session gets disconnected, the CE immediately
+The server uses SSH to establish a secure connection to the submit host.
+The SSH connection starts a proxy process that listens on a UNIX domain socket
+for connections. If the SSH session gets disconnected, the server immediately
 reconnects. When a remote GAHP job is submitted, the GridManager launches an
 client process to start and communicate with the GAHP servers. The client
 connects to the proxy and sends the name of the GAHP to start (batch_gahp for
 job submission or condor_ft-gahp for file transfer). The proxy forwards the
-request to the CE, which forks the appropriate GAHP and connects it to the SSH
-process using a socketpair. Once this is done, the CE immediately establishes
+request to the server, which forks the appropriate GAHP and connects it to the SSH
+process using a socketpair. Once this is done, the server immediately establishes
 another SSH connection to the submit host. The client copies its stdin from the
-GridManager to the helper, and data from the helper to stdout and back to the
+GridManager to the proxy, and data from the proxy to stdout and back to the
 GridManager. The proxy passes data to the SSH process, and the SSH process
 passes data to the GAHP. Once all connections are established, the job
 execution proceeds. When the GridManager is done, the GAHP servers exit and the
@@ -88,7 +88,7 @@ On the remote resource:
    in this example) that can be used to log into your submit host. Test this script
    manually to make sure that it works before continuing to the next step.
 
-1. Start the rvgahp_ce process.
+1. Start the rvgahp_server process.
 
 Example Condor Job
 ------------------

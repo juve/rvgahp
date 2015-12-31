@@ -1,4 +1,4 @@
 *.o
-rvgahp_ce
+rvgahp_server
 rvgahp_proxy
 rvgahp_client

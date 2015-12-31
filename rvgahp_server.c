@@ -186,6 +186,7 @@ int main(int argc, char** argv) {
             } else {
                 fprintf(stderr, "Unknown option `-%c'.\n", optopt);
             }
+            usage();
             return 1;
         default:
             abort();
