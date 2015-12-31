@@ -227,7 +227,7 @@
 		</dict>
 		<dict>
 			<key>Bounds</key>
-			<string>{{372.68789325162555, 268.79316003577151}, {65, 24}}</string>
+			<string>{{372.68217513022108, 268.79312206060513}, {65, 24}}</string>
 			<key>Class</key>
 			<string>ShapedGraphic</string>
 			<key>FitText</key>
@@ -297,8 +297,8 @@
 			<integer>46</integer>
 			<key>Points</key>
 			<array>
-				<string>{475.05586831552051, 161.43151078131308}</string>
-				<string>{330.92725203573758, 407.65918988873216}</string>
+				<string>{475.05476830288063, 161.43150347027125}</string>
+				<string>{330.91662546067101, 407.65911932155842}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -322,7 +322,7 @@
 		</dict>
 		<dict>
 			<key>Bounds</key>
-			<string>{{69.501719694409729, 187.9234017728437}, {38, 24}}</string>
+			<string>{{69.500114397476239, 187.92340177297592}, {38, 24}}</string>
 			<key>Class</key>
 			<string>ShapedGraphic</string>
 			<key>FitText</key>
@@ -382,7 +382,7 @@
 		</dict>
 		<dict>
 			<key>Bounds</key>
-			<string>{{372.97915076574856, 423.99115501819415}, {65, 24}}</string>
+			<string>{{372.97915177340246, 424.07790875654541}, {65, 24}}</string>
 			<key>Class</key>
 			<string>ShapedGraphic</string>
 			<key>FitText</key>
@@ -452,8 +452,8 @@
 			<integer>43</integer>
 			<key>Points</key>
 			<array>
-				<string>{448.50000028883642, 436.03817510548402}</string>
-				<string>{362.27309850068394, 435.94393251163109}</string>
+				<string>{448.49999999428957, 436.08392483689522}</string>
+				<string>{362.27310081614451, 436.07186677725156}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -538,7 +538,7 @@ Socket}</string>
 		</dict>
 		<dict>
 			<key>Bounds</key>
-			<string>{{295.26962301588912, 329.53309464255472}, {38, 24}}</string>
+			<string>{{295.26962244147319, 329.53309464255472}, {38, 24}}</string>
 			<key>Class</key>
 			<string>ShapedGraphic</string>
 			<key>FitText</key>
@@ -608,8 +608,8 @@ Socket}</string>
 			<integer>40</integer>
 			<key>Points</key>
 			<array>
-				<string>{314.26711990654582, 273.5}</string>
-				<string>{314.27205343912158, 407.59062194824219}</string>
+				<string>{314.26711973695785, 273.5}</string>
+				<string>{314.27205247163323, 407.59062194824219}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -651,7 +651,7 @@ Socket}</string>
 		</dict>
 		<dict>
 			<key>Bounds</key>
-			<string>{{194.82104818285808, 424.04552881608663}, {35, 24}}</string>
+			<string>{{194.82104842773322, 424.08734087400728}, {35, 24}}</string>
 			<key>Class</key>
 			<string>ShapedGraphic</string>
 			<key>FitText</key>
@@ -746,7 +746,7 @@ Socket}</string>
 		</dict>
 		<dict>
 			<key>Bounds</key>
-			<string>{{406.92737179139539, 350.06881784335928}, {38, 24}}</string>
+			<string>{{406.90962709443465, 350.06893161226441}, {38, 24}}</string>
 			<key>Class</key>
 			<string>ShapedGraphic</string>
 			<key>FitText</key>
@@ -806,7 +806,7 @@ Socket}</string>
 		</dict>
 		<dict>
 			<key>Bounds</key>
-			<string>{{370.86945833919395, 185.52798797291302}, {38, 24}}</string>
+			<string>{{370.51963860893267, 185.52648143800181}, {38, 24}}</string>
 			<key>Class</key>
 			<string>ShapedGraphic</string>
 			<key>FitText</key>
@@ -881,7 +881,7 @@ Socket}</string>
 {\colortbl;\red255\green255\blue255;}
 \pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\qc
 
-\f0\fs24 \cf0 rvgahp_helper}</string>
+\f0\fs24 \cf0 rvgahp_proxy}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -948,7 +948,7 @@ qdel}</string>
 		</dict>
 		<dict>
 			<key>Bounds</key>
-			<string>{{267.68276072700348, 121.00549265569688}, {77, 24}}</string>
+			<string>{{267.6827607265401, 121.00010030519383}, {77, 24}}</string>
 			<key>Class</key>
 			<string>ShapedGraphic</string>
 			<key>FitText</key>
@@ -1018,8 +1018,8 @@ qdel}</string>
 			<integer>23</integer>
 			<key>Points</key>
 			<array>
-				<string>{443.69816591831119, 133.00142116215673}</string>
-				<string>{136.49999997627842, 133.0105165456626}</string>
+				<string>{443.69816591830954, 133.00002595282746}</string>
+				<string>{136.49999997524517, 133.00019204993166}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -1263,8 +1263,8 @@ qdel}</string>
 			<integer>11</integer>
 			<key>Points</key>
 			<array>
-				<string>{266.27310091261529, 436.06939167102763}</string>
-				<string>{136.49999932885862, 436.01199336008943}</string>
+				<string>{266.27310085661344, 436.08907718715579}</string>
+				<string>{136.49999999656865, 436.08490076139992}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -1298,8 +1298,8 @@ qdel}</string>
 			<integer>10</integer>
 			<key>Points</key>
 			<array>
-				<string>{359.28199790751455, 216.73411545915943}</string>
-				<string>{447.61366957760021, 161.26990485696598}</string>
+				<string>{359.07369760648572, 216.73322468459963}</string>
+				<string>{446.99669146791473, 161.26723109179392}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -1331,8 +1331,8 @@ qdel}</string>
 			<integer>9</integer>
 			<key>Points</key>
 			<array>
-				<string>{341.31782378045727, 273.36181083154622}</string>
-				<string>{469.47811947390159, 407.72863486001967}</string>
+				<string>{341.31352483731439, 273.36183838984022}</string>
+				<string>{469.45345389572009, 407.72879300378156}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -1364,8 +1364,8 @@ qdel}</string>
 			<integer>8</integer>
 			<key>Points</key>
 			<array>
-				<string>{88.500732349064435, 161.49999999999829}</string>
-				<string>{88.502839458653341, 243.49999999971973}</string>
+				<string>{88.50004871730944, 161.5}</string>
+				<string>{88.500188886410285, 243.5}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -1442,7 +1442,7 @@ qdel}</string>
 {\colortbl;\red255\green255\blue255;}
 \pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\qc
 
-\f0\fs24 \cf0 rvgahp_proxy}</string>
+\f0\fs24 \cf0 rvgahp_client}</string>
 			</dict>
 		</dict>
 		<dict>
@@ -1513,7 +1513,7 @@ qdel}</string>
 	<key>MasterSheets</key>
 	<array/>
 	<key>ModificationDate</key>
-	<string>2015-12-18 15:07:28 +0000</string>
+	<string>2015-12-31 16:09:42 +0000</string>
 	<key>Modifier</key>
 	<string>Gideon Juve</string>
 	<key>NotesVisible</key>
@@ -1594,7 +1594,7 @@ qdel}</string>
 			</dict>
 		</array>
 		<key>Frame</key>
-		<string>{{620, 274}, {1174, 1119}}</string>
+		<string>{{240, 54}, {710, 823}}</string>
 		<key>ListView</key>
 		<true/>
 		<key>OutlineWidth</key>
@@ -1608,7 +1608,7 @@ qdel}</string>
 		<key>SidebarWidth</key>
 		<integer>120</integer>
 		<key>VisibleRegion</key>
-		<string>{{-232, -122}, {1039, 977}}</string>
+		<string>{{0, 0}, {575, 681}}</string>
 		<key>Zoom</key>
 		<real>1</real>
 		<key>ZoomValues</key>

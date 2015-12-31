@@ -1,5 +1,4 @@
 *.o
 rvgahp_ce
 rvgahp_proxy
-rvgahp_broker
-rvgahp_helper
+rvgahp_client

@@ -22,74 +22,129 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/poll.h>
 #include <libgen.h>
-#include <sys/un.h>
+#include <sys/stat.h>
 
 #include "common.h"
+
+#define SECONDS 1000
+#define MINUTES (60*SECONDS)
+#define TIMEOUT (1*MINUTES)
 
 char *argv0 = NULL;
 
 void usage() {
-    fprintf(stderr, "Usage: %s SOCKPATH GAHP_NAME\n\n", argv0);
-    fprintf(stderr, "Where SOCKPATH is the path to the unix domain socket\n"
-                    "that should be created, and GAHP_NAME is 'batch_gahp'\n"
-                    "or 'condor_ft-gahp'\n");
+    fprintf(stderr, "Usage: %s SOCKPATH\n\n", argv0);
+    fprintf(stderr, "Where SOCKPATH is the path to the unix domain socket "
+                    "that should be created\n");
 }
 
 int main(int argc, char **argv) {
     argv0 = basename(strdup(argv[0]));
 
-    if (argc != 3) {
-        fprintf(stderr, "Wrong number of arguments: expected 3, got %d\n", argc);
+    if (argc != 2) {
+        fprintf(stderr, "ERROR Invalid argument\n");
         usage();
         exit(1);
     }
 
     char *sockpath = argv[1];
-    char *gahp = argv[2];
 
-    /* If the socket doesn't exist, give it 30 seconds to appear */
-    int tries = 0;
-    while (access(sockpath, R_OK|W_OK) != 0) {
-        tries++;
-        if (tries < 30) {
-            sleep(1);
-        } else {
-            fprintf(stderr, "ERROR No UNIX socket\n");
-            return 1;
-        }
-    }
+    log(stderr, "%s starting...\n", argv0);
+    log(stderr, "UNIX socket: %s\n", sockpath);
+
+    unlink(sockpath);
 
     int sck = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sck < 0) {
-        fprintf(stderr, "ERROR creating socket: %s\n", strerror(errno));
+        log(stderr, "ERROR creating socket: %s\n", strerror(errno));
         return 1;
     }
 
-    struct sockaddr_un remote;
-    remote.sun_family = AF_UNIX;
-    strcpy(remote.sun_path, sockpath);
-    socklen_t addrlen = strlen(remote.sun_path) + sizeof(remote.sun_family);
+    struct sockaddr_un local;
+    local.sun_family = AF_UNIX;
+    strcpy(local.sun_path, sockpath);
+    socklen_t addrlen = strlen(local.sun_path) + sizeof(local.sun_family);
 
-    if (connect(sck, (struct sockaddr *)&remote, addrlen) < 0) {
-        fprintf(stderr, "ERROR connecting to socket: %s\n", sockpath);
-        exit(1);
+    if (bind(sck, (struct sockaddr *)&local, addrlen) < 0) {
+        log(stderr, "ERROR binding socket: %s\n", strerror(errno));
+        return 1;
     }
 
-    /* Tell the remote site the GAHP we want to start */
-    if (dprintf(sck, "%s\r\n", gahp) < 0) {
-        fprintf(stderr, "ERROR sending GAHP message to helper: %s\n", strerror(errno));
-        close(sck);
-        exit(1);
+    if (listen(sck, 0) < 0) {
+        log(stderr, "ERROR listening on socket: %s\n", strerror(errno));
+        return 1;
     }
 
-    /* Handle all the I/O between GridManager and helper */
-    int bytes_read = 0;
-    char buf[BUFSIZ];
+    /* Get the INODE number of the socket so we can check it later */
+    struct stat st;
+    if (stat(sockpath, &st) < 0) {
+        log(stderr, "ERROR stat()ing socket: %s\n", strerror(errno));
+        return 1;
+    }
+    ino_t sock_inode = st.st_ino;
+
+    /* Initally poll to accept and check stdin */
     struct pollfd ufds[2];
+    int client = -1;
     while (1) {
         ufds[0].fd = sck;
+        ufds[0].events = POLLIN;
+        ufds[0].revents = 0;
+        ufds[1].fd = STDIN_FILENO;
+        ufds[1].events = POLLHUP|POLLERR;
+        ufds[1].revents = 0;
+
+        int rv = poll(ufds, 2, TIMEOUT);
+        if (rv == -1) {
+            log(stderr, "ERROR polling for connection/stdin close: %s\n", strerror(errno));
+            exit(1);
+        } else if (rv == 0) {
+            /* Check to make sure our socket file still exists */
+            struct stat st;
+            if (stat(sockpath, &st) < 0) {
+                log(stderr, "ERROR stat()ing socket: %s\n", strerror(errno));
+                exit(1);
+            }
+            if (sock_inode != st.st_ino) {
+                log(stderr, "ERROR UNIX socket replaced\n");
+                exit(1);
+            }
+        } else {
+            if (ufds[0].revents & POLLIN) {
+                struct sockaddr_un remote;
+                client = accept(sck, (struct sockaddr *)&remote, &addrlen);
+                if (client < 0) {
+                    log(stderr, "ERROR accepting connection: %s\n", strerror(errno));
+                    exit(1);
+                }
+                break;
+            }
+            if (ufds[0].revents != 0 && ufds[0].revents != POLLHUP) {
+                log(stderr, "ERROR on UNIX listening socket!\n");
+                exit(1);
+            }
+            if (ufds[1].revents != 0) {
+                log(stderr, "ERROR stdin from SSH closed\n");
+                exit(1);
+            }
+        }
+    }
+
+    /* Close the server socket before connecting I/O so the next proxy process
+     * can start listening. */
+    close(sck);
+
+    /* Remove the socket here */
+    unlink(sockpath);
+
+    /* Handle all the I/O between client and server */
+    int bytes_read = 0;
+    char buf[BUFSIZ];
+    while (1) {
+        ufds[0].fd = client;
         ufds[0].events = POLLIN;
         ufds[0].revents = 0;
         ufds[1].fd = STDIN_FILENO;
@@ -98,51 +153,52 @@ int main(int argc, char **argv) {
 
         int rv = poll(ufds, 2, -1);
         if (rv == -1) {
-            fprintf(stderr, "ERROR polling socket and stdin: %s\n", strerror(errno));
+            log(stderr, "ERROR polling UNIX socket/stdin: %s\n", strerror(errno));
             exit(1);
         } else {
             if (ufds[0].revents & POLLIN) {
-                bytes_read = recv(sck, buf, BUFSIZ, 0);
+                bytes_read = recv(client, buf, BUFSIZ, 0);
                 if (bytes_read == 0) {
-                    /* Helper closed connection, should get POLLHUP */
-                } else if (bytes_read > 0) {
-                    if (write(STDOUT_FILENO, buf, bytes_read) < 0) {
-                        fprintf(stderr, "ERROR writing data to GridManager (stdout): %s\n", strerror(errno));
-                        break;
-                    }
+                    /* Proxy disconnected, should get POLLHUP */
+                } else if (bytes_read < 0) {
+                    log(stderr, "ERROR reading data from client socket: %s\n", strerror(errno));
+                    exit(1);
                 } else {
-                    fprintf(stderr, "ERROR reading from helper socket: %s\n", strerror(errno));
-                    break;
+                    if (write(STDOUT_FILENO, buf, bytes_read) < 0) {
+                        /* If that write failed, then this log message probably
+                         * will too :-/ */
+                        log(stderr, "ERROR writing to SSH (stdout): %s\n", strerror(errno));
+                        exit(1);
+                    }
                 }
             }
             if (ufds[0].revents & POLLHUP) {
-                fprintf(stderr, "Helper hung up (socket disconnected)\n");
-                break;
+                log(stderr, "Client disconnected (socket closed)\n");
+                exit(1);
             }
-
             if (ufds[1].revents & POLLIN) {
                 bytes_read = read(STDIN_FILENO, buf, BUFSIZ);
                 if (bytes_read == 0) {
-                    /* GridManager closed stdin, should get POLLHUP */
-                } else if (bytes_read > 0) {
-                    if (send(sck, buf, bytes_read, 0) < 0) {
-                        fprintf(stderr, "ERROR sending data to helper socket: %s\n", strerror(errno));
-                        break;
-                    }
+                    /* SSH closed stdin, should get POLLHUP */
+                } else if (bytes_read < 0) {
+                    log(stderr, "ERROR reading from SSH/stdin: %s\n", strerror(errno));
+                    exit(1);
                 } else {
-                    fprintf(stderr, "ERROR reading from GridManager (stdin)\n");
-                    break;
+                    if (send(client, buf, bytes_read, 0) < 0) {
+                        log(stderr, "ERROR sending message to client: %s\n", strerror(errno));
+                        exit(1);
+                    }
                 }
             }
             if (ufds[1].revents & POLLHUP) {
-                /* Likely won't be seen */
-                fprintf(stderr, "GridManager hung up (stdin closed)\n");
-                break;
+                /* Likely will never be seen */
+                log(stderr, "SSH disconnected (stdin closed)\n");
+                exit(1);
             }
         }
     }
 
-    close(sck);
+    close(client);
 
     return 0;
 }

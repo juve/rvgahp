@@ -17,14 +17,14 @@ The CE daemon uses SSH to establish a secure connection to the submit host.
 The SSH connection starts a helper process that listens on a UNIX domain socket
 for connections. If the SSH session gets disconnected, the CE immediately
 reconnects. When a remote GAHP job is submitted, the GridManager launches an
-proxy process to start and communicate with the GAHP servers. The proxy
-connects to the helper and sends the name of the GAHP to start (batch_gahp for
-job submission or condor_ft-gahp for file transfer). The helper forwards the
+client process to start and communicate with the GAHP servers. The client
+connects to the proxy and sends the name of the GAHP to start (batch_gahp for
+job submission or condor_ft-gahp for file transfer). The proxy forwards the
 request to the CE, which forks the appropriate GAHP and connects it to the SSH
 process using a socketpair. Once this is done, the CE immediately establishes
-another SSH connection to the submit host. The proxy copies its stdin from the
+another SSH connection to the submit host. The client copies its stdin from the
 GridManager to the helper, and data from the helper to stdout and back to the
-GridManager. The helper passes data to the SSH process, and the SSH process
+GridManager. The proxy passes data to the SSH process, and the SSH process
 passes data to the GAHP. Once all connections are established, the job
 execution proceeds. When the GridManager is done, the GAHP servers exit and the
 connections are torn down.
@@ -37,7 +37,7 @@ On your submit host:
 1. In your condor_config.local set:
 
     ```
-    REMOTE_GAHP = /path/to/rvgahp_proxy
+    REMOTE_GAHP = /path/to/rvgahp_client
     ```
 1. (Optional) In your condor_config.local set a throttle for the maximum number of
    submitted jobs. You can set it for all resources using the batch GAHP:
@@ -81,7 +81,7 @@ On the remote resource:
 
     ```
     #!/bin/bash
-    exec ssh -o "ServerAliveInterval 60" -o "BatchMode yes" -i id_rsa_rvgahp user@submithost "/path/to/rvgahp_helper /tmp/user.hpcc.sock"
+    exec ssh -o "ServerAliveInterval 60" -o "BatchMode yes" -i id_rsa_rvgahp user@submithost "/path/to/rvgahp_proxy /tmp/user.hpcc.sock"
     ```
 
    It is recommended that you create a passwordless ssh key (called id_rsa_rvgahp
