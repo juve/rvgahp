@@ -98,11 +98,7 @@ int _condor_config_val(char *var, char *val, size_t valsize, const char *default
     }
 
     /* Trim the string */
-    int sz = strlen(buf) - 1;
-    while (buf[sz] == '\n' || buf[sz] == '\r') {
-        buf[sz] = '\0';
-        sz--;
-    }
+    strtok(buf, "\r\n");
 
     snprintf(val, valsize, "%s", buf);
 
@@ -157,19 +153,15 @@ int loop() {
         log(stderr, "ERROR read from SSH failed: %s\n", strerror(errno));
         /* This probably happened because the SSH process died */
         goto error;
-    }
-    if (b == 0) {
+    } else if (b == 0) {
         log(stderr, "ERROR SSH socket closed\n");
         goto error;
+    } else {
+        gahp[b] = '\0';
     }
 
     /* Trim the message */
-    gahp[b] = '\0';
-    char c = gahp[--b];
-    while (c == '\r' || c == '\n') {
-        gahp[b] = '\0';
-        c = gahp[--b];
-    }
+    strtok(gahp, "\r\n");
 
     /* Construct the actual GAHP command */
     char gahp_command[BUFSIZ];
