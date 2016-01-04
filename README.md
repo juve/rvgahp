@@ -2,39 +2,41 @@ Reverse GAHP
 ============
 
 This is an implementation of the remote_gahp for Condor that doesn't require
-ssh connections to the remote resource. Instead, it uses connection brokering
-to establish bi-directional communication between the GridManager and GAHP
-processes running on the remote resource. The key benefit of this approach is
-that it enables remote job submission without requiring the remote resource
-to run services that accept incoming network connections (usually because of
-security policy).
+listening services on the remote resource. Instead, it uses a "reverse" SSH
+connection from the remote resource to the submit host to establish
+communication between the local GridManager and the GAHP process running on
+the remote resource. The key benefit of this approach is that it enables remote
+job submission without requiring the remote resource to run services that
+accept incoming network connections, which is sometimes prohibited by security
+policy.
 
 It works like this:
 
 ![rvgahp design](doc/rvgahp.png)
 
-The server uses SSH to establish a secure connection to the submit host.
-The SSH connection starts a proxy process that listens on a UNIX domain socket
-for connections. If the SSH session gets disconnected, the server immediately
-reconnects. When a remote GAHP job is submitted, the GridManager launches an
-client process to start and communicate with the GAHP servers. The client
-connects to the proxy and sends the name of the GAHP to start (batch_gahp for
-job submission or condor_ft-gahp for file transfer). The proxy forwards the
-request to the server, which forks the appropriate GAHP and connects it to the SSH
-process using a socketpair. Once this is done, the server immediately establishes
-another SSH connection to the submit host. The client copies its stdin from the
-GridManager to the proxy, and data from the proxy to stdout and back to the
-GridManager. The proxy passes data to the SSH process, and the SSH process
-passes data to the GAHP. Once all connections are established, the job
-execution proceeds. When the GridManager is done, the GAHP servers exit and the
-connections are torn down.
+The server uses SSH to establish a secure connection to the submit host.  The
+SSH connection starts a proxy process that listens on a UNIX domain socket for
+requests. This SSH connection remains open all the time, even when there are no
+jobs running. If the SSH session gets disconnected, the server immediately
+reestablishes the connection. When a remote GAHP job is submitted, the
+GridManager launches a client process to communicate with the GAHP servers. The
+client connects to the proxy through the local UNIX socket and sends the name
+of the GAHP to start (batch_gahp for job submission or condor_ft-gahp for file
+transfer). The proxy forwards the request to the server, which forks the
+appropriate GAHP and connects it to the SSH process using a socketpair. Once
+this is done, the server immediately establishes another SSH connection to the
+submit host. The client copies its stdin from the GridManager to the proxy, and
+data from the proxy to stdout and back to the GridManager. The proxy passes
+data to the SSH process, and the SSH process passes data to the GAHP. Once all
+connections are established, the job execution proceeds. When the GridManager
+is done, the GAHP servers exit and the connections are torn down.
 
 Configuration
 -------------
 
-On your submit host:
+On the submit host:
 
-1. In your condor_config.local set:
+1. In condor_config.local set:
 
     ```
     REMOTE_GAHP = /path/to/rvgahp_client
@@ -51,7 +53,7 @@ On your submit host:
     ```
     # /tmp/user.hpcc.sock is the name of the UNIX socket in the diagram
     # above. It should match the grid_resource from the job and the argument
-    # for the rvgahp_helper in the ssh command below.
+    # for the rvgahp_proxy in the ssh command below.
     GRIDMANAGER_MAX_SUBMITTED_JOBS_PER_RESOURCE = 2, /tmp/user.hpcc.sock
     ```
 
@@ -86,7 +88,9 @@ On the remote resource:
 
    It is recommended that you create a passwordless ssh key (called id_rsa_rvgahp
    in this example) that can be used to log into your submit host. Test this script
-   manually to make sure that it works before continuing to the next step.
+   manually to make sure that it works before continuing to the next step. It is
+   possible to [configure this key so that it can only run the rvgahp_proxy
+   command](https://www.google.com/search?q=ssh+authorized_keys+single+command).
 
 1. Start the rvgahp_server process.
 
