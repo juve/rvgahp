@@ -7,8 +7,9 @@ connection from the remote resource to the submit host to establish
 communication between the local GridManager and the GAHP process running on
 the remote resource. The key benefit of this approach is that it enables remote
 job submission without requiring the remote resource to run services that
-accept incoming network connections, which is sometimes prohibited by security
-policy.
+accept incoming network connections, or to accept SSH connections without
+two-factor authentication (e.g. RSA tokens), which are sometimes prohibited by
+security policy.
 
 It works like this:
 
